@@ -1,0 +1,1069 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+docker-compose.yml
+package.json
+prisma/migrations/20260114220654_init_db/migration.sql
+prisma/migrations/20260115212653_add_streak_fields/migration.sql
+prisma/migrations/20260120024253_add_social_auth/migration.sql
+prisma/migrations/20260120031137_add_social_id/migration.sql
+prisma/migrations/20260121225651_add_journey_fields/migration.sql
+prisma/migrations/20260122100000_add_daily_minutes/migration.sql
+prisma/migrations/20260127213728_add_day_number/migration.sql
+prisma/migrations/20260208214051_add_task_links/migration.sql
+prisma/migrations/20260216002731_add_social_features/migration.sql
+prisma/migrations/20260216010403_add_friend_requests/migration.sql
+prisma/migrations/20260531120000_game_session_schema/migration.sql
+prisma/migrations/20260531180000_single_device_profile/migration.sql
+prisma/migrations/migration_lock.toml
+prisma/schema.prisma
+README.md
+src/index.ts
+src/lib/prisma.ts
+src/prisma/seed.ts
+src/services/ai.service.ts
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+node_modules/
+dist/
+.env
+*.log
+</file>
+
+<file path="docker-compose.yml">
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: productivity-ai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: productivity_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+</file>
+
+<file path="package.json">
+{
+  "name": "productivity-ai-backend",
+  "version": "1.0.0",
+  "description": "Backend server for Productivity AI",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx src/prisma/seed.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.19.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "prisma": "^5.19.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "seed": "tsx src/prisma/seed.ts"
+  }
+}
+</file>
+
+<file path="prisma/migrations/20260114220654_init_db/migration.sql">
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT,
+    "password" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "onboardingData" JSONB,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Goal" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'active',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "Goal_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Task" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "duration" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'queued',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "goalId" TEXT NOT NULL,
+
+    CONSTRAINT "Task_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- AddForeignKey
+ALTER TABLE "Goal" ADD CONSTRAINT "Goal_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Task" ADD CONSTRAINT "Task_goalId_fkey" FOREIGN KEY ("goalId") REFERENCES "Goal"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/20260115212653_add_streak_fields/migration.sql">
+-- AlterTable
+ALTER TABLE "Task" ADD COLUMN     "order" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "currentStreak" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "lastActiveDate" TIMESTAMP(3);
+</file>
+
+<file path="prisma/migrations/20260120024253_add_social_auth/migration.sql">
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "provider" TEXT NOT NULL DEFAULT 'email',
+ALTER COLUMN "password" DROP NOT NULL;
+</file>
+
+<file path="prisma/migrations/20260120031137_add_social_id/migration.sql">
+/*
+  Warnings:
+
+  - A unique constraint covering the columns `[socialId]` on the table `User` will be added. If there are existing duplicate values, this will fail.
+
+*/
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "socialId" TEXT;
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_socialId_key" ON "User"("socialId");
+</file>
+
+<file path="prisma/migrations/20260121225651_add_journey_fields/migration.sql">
+-- AlterTable
+ALTER TABLE "Goal" ADD COLUMN     "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "targetDate" TIMESTAMP(3),
+ADD COLUMN     "type" TEXT NOT NULL DEFAULT 'project';
+</file>
+
+<file path="prisma/migrations/20260122100000_add_daily_minutes/migration.sql">
+-- AlterTable
+ALTER TABLE "Goal" ADD COLUMN "dailyMinutes" INTEGER NOT NULL DEFAULT 45;
+</file>
+
+<file path="prisma/migrations/20260127213728_add_day_number/migration.sql">
+-- AlterTable
+ALTER TABLE "Task" ADD COLUMN     "dayNumber" INTEGER NOT NULL DEFAULT 1;
+</file>
+
+<file path="prisma/migrations/20260208214051_add_task_links/migration.sql">
+-- AlterTable
+ALTER TABLE "Task" ADD COLUMN     "linkLabel" TEXT,
+ADD COLUMN     "linkUrl" TEXT;
+</file>
+
+<file path="prisma/migrations/20260216002731_add_social_features/migration.sql">
+-- CreateTable
+CREATE TABLE "Friendship" (
+    "id" TEXT NOT NULL,
+    "followerId" TEXT NOT NULL,
+    "followingId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Friendship_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Report" (
+    "id" TEXT NOT NULL,
+    "reporterId" TEXT NOT NULL,
+    "reportedUserId" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Report_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Friendship_followerId_followingId_key" ON "Friendship"("followerId", "followingId");
+
+-- AddForeignKey
+ALTER TABLE "Friendship" ADD CONSTRAINT "Friendship_followerId_fkey" FOREIGN KEY ("followerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Friendship" ADD CONSTRAINT "Friendship_followingId_fkey" FOREIGN KEY ("followingId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Report" ADD CONSTRAINT "Report_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Report" ADD CONSTRAINT "Report_reportedUserId_fkey" FOREIGN KEY ("reportedUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/20260216010403_add_friend_requests/migration.sql">
+-- AlterTable
+ALTER TABLE "Friendship" ADD COLUMN     "status" TEXT NOT NULL DEFAULT 'PENDING';
+</file>
+
+<file path="prisma/migrations/20260531120000_game_session_schema/migration.sql">
+-- Drop legacy productivity tables
+DROP TABLE IF EXISTS "Task" CASCADE;
+DROP TABLE IF EXISTS "Goal" CASCADE;
+
+-- Game session schema
+CREATE TABLE "GameSession" (
+    "id" TEXT NOT NULL,
+    "roomCode" TEXT NOT NULL,
+    "hostId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "vibeWeights" JSONB NOT NULL,
+
+    CONSTRAINT "GameSession_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "QuestionPrompt" (
+    "id" TEXT NOT NULL,
+    "text" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "tags" TEXT[],
+
+    CONSTRAINT "QuestionPrompt_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "SessionPlay" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "promptId" TEXT NOT NULL,
+    "swipedLeft" BOOLEAN NOT NULL,
+    "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SessionPlay_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "GameSession_roomCode_key" ON "GameSession"("roomCode");
+
+ALTER TABLE "SessionPlay" ADD CONSTRAINT "SessionPlay_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "GameSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SessionPlay" ADD CONSTRAINT "SessionPlay_promptId_fkey" FOREIGN KEY ("promptId") REFERENCES "QuestionPrompt"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/20260531180000_single_device_profile/migration.sql">
+-- Drop legacy multiplayer & productivity tables
+DROP TABLE IF EXISTS "SessionPlay" CASCADE;
+DROP TABLE IF EXISTS "GameSession" CASCADE;
+DROP TABLE IF EXISTS "Task" CASCADE;
+DROP TABLE IF EXISTS "Goal" CASCADE;
+DROP TABLE IF EXISTS "Report" CASCADE;
+DROP TABLE IF EXISTS "Friendship" CASCADE;
+DROP TABLE IF EXISTS "PromptPlay" CASCADE;
+DROP TABLE IF EXISTS "UserProfile" CASCADE;
+
+-- Slim auth user (drop streak / onboarding columns if present)
+ALTER TABLE "User" DROP COLUMN IF EXISTS "currentStreak";
+ALTER TABLE "User" DROP COLUMN IF EXISTS "lastActiveDate";
+ALTER TABLE "User" DROP COLUMN IF EXISTS "onboardingData";
+
+CREATE TABLE "UserProfile" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "vibeWeights" JSONB NOT NULL,
+
+    CONSTRAINT "UserProfile_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "QuestionPrompt" (
+    "id" TEXT NOT NULL,
+    "text" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "tags" TEXT[],
+
+    CONSTRAINT "QuestionPrompt_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "PromptPlay" (
+    "id" TEXT NOT NULL,
+    "profileId" TEXT NOT NULL,
+    "promptId" TEXT NOT NULL,
+    "swipedLeft" BOOLEAN NOT NULL,
+    "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PromptPlay_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "UserProfile_userId_key" ON "UserProfile"("userId");
+
+ALTER TABLE "UserProfile" ADD CONSTRAINT "UserProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PromptPlay" ADD CONSTRAINT "PromptPlay_profileId_fkey" FOREIGN KEY ("profileId") REFERENCES "UserProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PromptPlay" ADD CONSTRAINT "PromptPlay_promptId_fkey" FOREIGN KEY ("promptId") REFERENCES "QuestionPrompt"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/migration_lock.toml">
+# Please do not edit this file manually
+# It should be added in your version-control system (i.e. Git)
+provider = "postgresql"
+</file>
+
+<file path="prisma/schema.prisma">
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  socialId  String?  @unique
+  name      String?
+  password  String?
+  provider  String   @default("email")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile UserProfile?
+}
+
+model UserProfile {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  vibeWeights  Json
+  traitProfile String?      // Stores the AI's psychological profile of the user
+  history      PromptPlay[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model QuestionPrompt {
+  id       String       @id @default(uuid())
+  text     String
+  category String
+  tags     String[]
+  plays    PromptPlay[]
+}
+
+model PromptPlay {
+  id         String   @id @default(uuid())
+  profileId  String
+  promptId   String
+  swipedLeft Boolean
+  timestamp  DateTime @default(now())
+
+  profile UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  prompt  QuestionPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+}
+</file>
+
+<file path="README.md">
+# Backend Setup Instructions
+
+## Environment Variables
+
+Create a `.env` file in the `backend` directory with the following content:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/productivity_ai?schema=public"
+PORT=3000
+```
+
+## Database Setup Options
+
+### Option 1: Using Docker (Recommended)
+
+1. Start PostgreSQL container:
+   ```bash
+   docker-compose up -d
+   ```
+
+2. Wait for the database to be ready (about 10-15 seconds)
+
+3. Run Prisma migrations:
+   ```bash
+   npm run prisma:migrate
+   ```
+
+4. Generate Prisma Client:
+   ```bash
+   npm run prisma:generate
+   ```
+
+5. Seed the database:
+   ```bash
+   npm run prisma:seed
+   ```
+
+### Option 2: Using Local PostgreSQL
+
+If you have PostgreSQL installed locally:
+
+1. Create a database:
+   ```sql
+   CREATE DATABASE productivity_ai;
+   ```
+
+2. Update the `DATABASE_URL` in `.env` to match your local PostgreSQL credentials
+
+3. Run Prisma migrations:
+   ```bash
+   npm run prisma:migrate
+   ```
+
+4. Generate Prisma Client:
+   ```bash
+   npm run prisma:generate
+   ```
+
+5. Seed the database:
+   ```bash
+   npm run prisma:seed
+   ```
+
+## Running the Server
+
+Development mode (with hot reload):
+```bash
+npm run dev
+```
+
+Production mode:
+```bash
+npm run build
+npm start
+```
+
+The server will run on `http://localhost:3000` (or the PORT specified in `.env`).
+</file>
+
+<file path="src/index.ts">
+import express from 'express';
+import cors from 'cors';
+import { PrismaClient } from '@prisma/client';
+import {
+  DEFAULT_VIBE_WEIGHTS,
+  applySwipeFeedback,
+  applySeedWeights,
+  getNextPromptsForProfile,
+  parseVibeWeights,
+} from './services/ai.service';
+
+const prisma = new PrismaClient();
+const app = express();
+const PORT = Number(process.env.PORT) || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+app.use((req, res, next) => {
+  console.log(`\n📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+async function ensureProfile(userId: string, seedWeights?: Record<string, number>) {
+  let profile = await prisma.userProfile.findUnique({ where: { userId } });
+  if (!profile) {
+    profile = await prisma.userProfile.create({
+      data: {
+        userId,
+        vibeWeights: seedWeights ? applySeedWeights(seedWeights) : DEFAULT_VIBE_WEIGHTS,
+        traitProfile: null,
+      },
+    });
+  }
+  return profile;
+}
+
+// ==========================================
+// AUTH
+// ==========================================
+app.post('/users/sync', async (req, res) => {
+  const { email, name, provider, socialId } = req.body;
+
+  if (!email && !socialId) {
+    return res.status(400).json({ error: 'email or socialId is required' });
+  }
+
+  try {
+    const isGuest = typeof email === 'string' && email.endsWith('@hezi.app') && email.startsWith('guest_');
+    const displayName = name || (isGuest ? 'Guest' : 'Player');
+    const authProvider = provider || (isGuest ? 'guest' : 'email');
+
+    let user;
+    if (socialId) user = await prisma.user.findUnique({ where: { socialId } });
+    if (!user && email) user = await prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: displayName,
+          socialId: socialId || user.socialId,
+          provider: authProvider,
+        },
+      });
+    } else {
+      const finalEmail = email || `${socialId}@${authProvider}.com`;
+      user = await prisma.user.create({
+        data: {
+          email: finalEmail,
+          name: displayName,
+          provider: authProvider,
+          socialId: socialId ?? null,
+        },
+      });
+    }
+
+    const profile = await ensureProfile(user.id);
+    const populatedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { profile: true },
+    });
+
+    res.json({
+      ...populatedUser,
+      profile: populatedUser?.profile ?? profile,
+      profileId: populatedUser?.profile?.id ?? profile.id,
+    });
+  } catch (error) {
+    console.error('Sync error:', error);
+    res.status(500).json({ error: 'Failed to sync user', details: String(error) });
+  }
+});
+
+app.get('/users/:email', async (req, res) => {
+  const { email } = req.params;
+  try {
+    const user = await prisma.user.findUnique({ where: { email }, include: { profile: true } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (error) { res.status(500).json({ error: 'Failed to fetch user' }); }
+});
+
+app.delete('/users/:email', async (req, res) => {
+  const { email } = req.params;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await prisma.user.delete({ where: { id: user.id } });
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: 'Failed to delete user' }); }
+});
+
+app.post('/profile/ensure', async (req, res) => {
+  const { userId, seedWeights } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId is required' });
+  try {
+    const profile = await ensureProfile(String(userId), seedWeights);
+    res.json(profile);
+  } catch (error) { res.status(500).json({ error: 'Failed to ensure profile' }); }
+});
+
+// ==========================================
+// BATCH PROMPT FETCHING
+// ==========================================
+app.post('/profile/next-prompt', async (req, res) => {
+  const { profileId, count = 2 } = req.body;
+  if (!profileId) return res.status(400).json({ error: 'profileId is required' });
+
+  try {
+    const profile = await prisma.userProfile.findUnique({
+      where: { id: profileId },
+      include: {
+        history: {
+          orderBy: { timestamp: 'asc' },
+          include: { prompt: true },
+        },
+      },
+    });
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+
+    const dbPrompts = await prisma.questionPrompt.findMany();
+    const history = profile.history.map((play) => ({
+      swipedLeft: play.swipedLeft,
+      prompt: { text: play.prompt.text, category: play.prompt.category, tags: play.prompt.tags },
+    }));
+    const playedPromptIds = profile.history.map((play) => play.promptId);
+
+    const result = await getNextPromptsForProfile({
+      vibeWeights: profile.vibeWeights,
+      traitProfile: profile.traitProfile,
+      history,
+      dbPrompts,
+      playedPromptIds,
+      count,
+    });
+
+    // Save generated prompts to DB to act as history anchors later
+    const savedPrompts = await Promise.all(
+      result.prompts.map(async (p) => {
+        if (p.id.startsWith('generated-') || p.id.startsWith('fallback-')) {
+          return await prisma.questionPrompt.create({
+            data: { text: p.text, category: p.category, tags: p.tags },
+          });
+        }
+        return p;
+      })
+    );
+
+    // Save the newly updated AI Character Profile
+    await prisma.userProfile.update({
+      where: { id: profileId },
+      data: { traitProfile: result.updatedTraitProfile },
+    });
+
+    res.json({ prompts: savedPrompts, traitProfile: result.updatedTraitProfile });
+  } catch (error) {
+    console.error('Next prompt error:', error);
+    res.status(500).json({ error: 'Failed to get next prompts' });
+  }
+});
+
+app.post('/profile/:profileId/swipe', async (req, res) => {
+  const { profileId } = req.params;
+  const { promptId, swipedLeft } = req.body;
+
+  if (!promptId || typeof swipedLeft !== 'boolean') {
+    return res.status(400).json({ error: 'promptId and swipedLeft are required' });
+  }
+
+  try {
+    const profile = await prisma.userProfile.findUnique({ where: { id: profileId } });
+    const prompt = await prisma.questionPrompt.findUnique({ where: { id: promptId } });
+    if (!profile || !prompt) return res.status(404).json({ error: 'Profile or prompt not found' });
+
+    const updatedWeights = applySwipeFeedback(
+      parseVibeWeights(profile.vibeWeights),
+      prompt.category,
+      prompt.tags,
+      swipedLeft
+    );
+
+    const play = await prisma.promptPlay.create({
+      data: { profileId, promptId, swipedLeft },
+    });
+    await prisma.userProfile.update({
+      where: { id: profileId },
+      data: { vibeWeights: updatedWeights },
+    });
+
+    res.json({ play, vibeWeights: updatedWeights });
+  } catch (error) {
+    console.error('Swipe error:', error);
+    res.status(500).json({ error: 'Failed to record swipe' });
+  }
+});
+
+app.post('/profile/:profileId/reset-weights', async (req, res) => {
+  const { profileId } = req.params;
+  const { seedWeights } = req.body;
+  try {
+    const weights = seedWeights ? applySeedWeights(seedWeights) : DEFAULT_VIBE_WEIGHTS;
+    const profile = await prisma.userProfile.update({
+      where: { id: profileId },
+      data: { vibeWeights: weights },
+    });
+    res.json(profile);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset weights' });
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Hezi API listening on port ${PORT}`);
+});
+</file>
+
+<file path="src/lib/prisma.ts">
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: ['query', 'error', 'warn'],
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+</file>
+
+<file path="src/prisma/seed.ts">
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const starterPrompts = [
+  // --- EXISTENTIAL (Deep Talk) ---
+  { text: 'What is a belief you held strongly in college that you have quietly abandoned?', category: 'Existential', tags: ['reflection', 'growth'] },
+  { text: 'If your life were a movie genre right now, what would the audience yell at the screen?', category: 'Existential', tags: ['meta', 'story'] },
+  { text: 'If you could know the absolute, undeniable truth to one question, what would you ask?', category: 'Existential', tags: ['truth', 'mystery'] },
+  { text: 'What is a piece of advice you give to others but constantly struggle to follow yourself?', category: 'Existential', tags: ['advice', 'hypocrisy'] },
+  { text: 'What part of your personality do you fake the most for the sake of other people?', category: 'Existential', tags: ['identity', 'social'] },
+  { text: 'At what age did you realize your parents were just regular people figuring it out?', category: 'Existential', tags: ['growing up', 'family'] },
+
+  // --- VULNERABILITY (Relationships / Deep Talk) ---
+  { text: 'When did you last cry in front of someone—and what did it cost you?', category: 'Vulnerability', tags: ['emotion', 'honesty'] },
+  { text: 'What is the nicest thing you have done that nobody in this room knows about?', category: 'Vulnerability', tags: ['kindness', 'secrets'] },
+  { text: 'What is an insecurity you have that you know is totally irrational?', category: 'Vulnerability', tags: ['fear', 'self'] },
+  { text: 'Who is the one person you owe an apology to, but haven’t given one?', category: 'Vulnerability', tags: ['regret', 'relationships'] },
+  { text: 'What is something you pretend to understand but actually have no clue about?', category: 'Vulnerability', tags: ['honesty', 'funny'] },
+
+  // --- NOSTALGIA ---
+  { text: 'Which childhood smell instantly transports you back—and to which room?', category: 'Nostalgia', tags: ['memory', 'sensory'] },
+  { text: 'Which family tradition would you erase without guilt?', category: 'Nostalgia', tags: ['family', 'boundaries'] },
+  { text: 'What was your absolute favorite TV show when you were 12 years old?', category: 'Nostalgia', tags: ['childhood', 'pop culture'] },
+  { text: 'Describe the worst fashion phase you went through in middle or high school.', category: 'Nostalgia', tags: ['regret', 'funny'] },
+  { text: 'What was your first ever username or email address?', category: 'Nostalgia', tags: ['cringe', 'internet'] },
+  { text: 'What is a song that immediately makes you think of your first crush?', category: 'Nostalgia', tags: ['music', 'romance'] },
+
+  // --- SCENARIOS (What Ifs / Icebreakers) ---
+  { text: 'If everyone here swapped phones for one hour, what would surprise the group most?', category: 'Scenarios', tags: ['hypothetical', 'funny'] },
+  { text: 'Would you rather relive one perfect day or erase one terrible one?', category: 'Scenarios', tags: ['choice', 'memory'] },
+  { text: 'If you had to disappear and start a new life in another country tomorrow, where do you go?', category: 'Scenarios', tags: ['escape', 'travel'] },
+  { text: 'You can pause time for exactly 24 hours. What do you do?', category: 'Scenarios', tags: ['superpower', 'fun'] },
+  { text: 'If you were arrested with no explanation, what would your friends assume you did?', category: 'Scenarios', tags: ['crime', 'reputation'] },
+  { text: 'You have to give a 30-minute TED talk right now with no prep. What is the topic?', category: 'Scenarios', tags: ['passion', 'skills'] },
+
+  // --- RELATIONSHIPS ---
+  { text: 'Who in this room would you call first with good news—and who with bad news?', category: 'Relationships', tags: ['trust', 'bonds'] },
+  { text: 'What compliment do you secretly crave but never know how to accept?', category: 'Relationships', tags: ['affirmation', 'self'] },
+  { text: 'What is a totally non-physical trait that you find instantly attractive?', category: 'Relationships', tags: ['attraction', 'dating'] },
+  { text: 'How do you know when a friendship has naturally run its course?', category: 'Relationships', tags: ['boundaries', 'growth'] },
+  { text: 'What is the most ridiculous reason you’ve ever stopped talking to someone?', category: 'Relationships', tags: ['petty', 'drama'] },
+
+  // --- FUNNY (Spicy Takes / Icebreakers) ---
+  { text: 'What is the pettiest hill you are willing to die on at brunch?', category: 'Funny', tags: ['debate', 'light'] },
+  { text: 'What song would play when you walk into a party where your ex is present?', category: 'Funny', tags: ['music', 'awkward'] },
+  { text: 'What is a food that everyone pretends to like but is actually terrible?', category: 'Funny', tags: ['food', 'opinions'] },
+  { text: 'Which conspiracy theory do you genuinely believe might be true?', category: 'Funny', tags: ['wild', 'theories'] },
+  { text: 'What is the weirdest thing you do when you are completely alone in your house?', category: 'Funny', tags: ['habits', 'secrets'] },
+  { text: 'If animals could talk, which species would be the rudest?', category: 'Funny', tags: ['animals', 'humor'] }
+];
+
+async function main() {
+  console.log('🌱 Seeding Hezi prompts...');
+
+  const count = await prisma.questionPrompt.count();
+  if (count < 30) {
+    console.log(`⚠️ Expanding DB prompts...`);
+    for (const prompt of starterPrompts) {
+      // Avoid duplicates if some already exist
+      const exists = await prisma.questionPrompt.findFirst({ where: { text: prompt.text } });
+      if (!exists) {
+        await prisma.questionPrompt.create({ data: prompt });
+      }
+    }
+    console.log(`✅ Seeded prompts successfully! Game is ready to play.`);
+  } else {
+    console.log(`ℹ️ ${count} prompts already in DB — skipping seed`);
+  }
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Seed failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+</file>
+
+<file path="src/services/ai.service.ts">
+import OpenAI from 'openai';
+import { Prisma } from '@prisma/client';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export const DEFAULT_VIBE_WEIGHTS: Record<string, number> = {
+  Existential: 0.5,
+  Nostalgia: 0.5,
+  Scenarios: 0.5,
+  Relationships: 0.5,
+  Funny: 0.5,
+  Vulnerability: 0.5,
+};
+
+const WEIGHT_DELTA = 0.12;
+const MIN_WEIGHT = 0.05;
+const MAX_WEIGHT = 1.0;
+
+export type QuestionPromptCandidate = {
+  id: string;
+  text: string;
+  category: string;
+  tags: string[];
+};
+
+export type PromptPlayRecord = {
+  swipedLeft: boolean;
+  prompt: { text: string; category: string; tags: string[] };
+};
+
+function clampWeight(value: number): number {
+  return Math.min(MAX_WEIGHT, Math.max(MIN_WEIGHT, value));
+}
+
+export function normalizeWeights(weights: Record<string, number>): Record<string, number> {
+  const merged = { ...DEFAULT_VIBE_WEIGHTS, ...weights };
+  const entries = Object.entries(merged);
+  const sum = entries.reduce((acc, [, v]) => acc + v, 0) || 1;
+  return Object.fromEntries(entries.map(([k, v]) => [k, clampWeight(v / sum)]));
+}
+
+export function parseVibeWeights(raw: Prisma.JsonValue | null): Record<string, number> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ...DEFAULT_VIBE_WEIGHTS };
+  }
+  return normalizeWeights(raw as Record<string, number>);
+}
+
+export function applySwipeFeedback(
+  weights: Record<string, number>,
+  category: string,
+  tags: string[],
+  swipedLeft: boolean
+): Record<string, number> {
+  const next = { ...parseVibeWeights(weights) };
+  const delta = swipedLeft ? WEIGHT_DELTA : -WEIGHT_DELTA;
+  const keys = new Set([category, ...tags]);
+
+  keys.forEach((key) => {
+    if (!key) return;
+    const current = next[key] ?? 0.5;
+    next[key] = clampWeight(current + delta);
+  });
+
+  return normalizeWeights(next);
+}
+
+export function applySeedWeights(seed: Record<string, number>): Record<string, number> {
+  return normalizeWeights({ ...DEFAULT_VIBE_WEIGHTS, ...seed });
+}
+
+export async function generatePersonalizedPrompts(
+  weights: Record<string, number>,
+  recentHistory: PromptPlayRecord[],
+  traitProfile: string | null,
+  count: number = 2
+): Promise<{ updatedProfile: string; prompts: { text: string; category: string; tags: string[] }[] } | null> {
+  
+  const liked = recentHistory.filter((h) => h.swipedLeft).map((h) => h.prompt.text).slice(-4);
+  const skipped = recentHistory.filter((h) => !h.swipedLeft).map((h) => h.prompt.text).slice(-4);
+
+  const systemPrompt = `
+You are the AI Game Master for a deep conversation card game. 
+Your goal is to build a psychological profile of the user based on their swipes, and generate highly targeted questions.
+
+CURRENT TRAIT PROFILE: ${traitProfile || 'New User, no data yet.'}
+RECENT QUESTIONS THEY LIKED: ${liked.join(' | ') || 'None'}
+RECENT QUESTIONS THEY SKIPPED: ${skipped.join(' | ') || 'None'}
+
+TASK:
+1. Update the Trait Profile. Based on their likes/skips, deduce their psychological preferences (e.g., "Avoids small talk, deeply nostalgic, prefers ethical dilemmas"). Keep it under 2 sentences.
+2. Generate ${count} new, highly personalized, open-ended questions (under 200 chars) that perfectly target this updated profile. Do not make them sound like robot prompts. Make them human, warm, and provocative.
+
+OUTPUT JSON FORMAT:
+{
+  "updatedTraitProfile": "...",
+  "prompts": [
+    { "text": "...", "category": "Existential", "tags": ["tag1", "tag2"] }
+  ]
+}
+`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [{ role: 'system', content: systemPrompt }],
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      temperature: 0.85,
+    });
+    const parsed = JSON.parse(completion.choices[0].message.content || '{}');
+    
+    if (!parsed.prompts || !Array.isArray(parsed.prompts)) return null;
+    
+    return {
+      updatedProfile: parsed.updatedTraitProfile || traitProfile || '',
+      prompts: parsed.prompts.map((p: any) => ({
+        text: String(p.text),
+        category: String(p.category || 'Deep Talk'),
+        tags: Array.isArray(p.tags) ? p.tags.map(String) : [],
+      })),
+    };
+  } catch (error) {
+    console.error('Personalized prompt generation failed:', error);
+    return null;
+  }
+}
+
+export async function getNextPromptsForProfile(input: {
+  vibeWeights: Prisma.JsonValue | null;
+  traitProfile: string | null;
+  history: PromptPlayRecord[];
+  dbPrompts: QuestionPromptCandidate[];
+  playedPromptIds: string[];
+  count: number;
+}): Promise<{
+  prompts: QuestionPromptCandidate[];
+  updatedTraitProfile: string;
+}> {
+  const weights = parseVibeWeights(input.vibeWeights);
+  const playedIds = new Set(input.playedPromptIds);
+  let results: QuestionPromptCandidate[] = [];
+
+  // Phase 1: Try to use Presets (DB Prompts) first (Max 3 times per category usually)
+  const availableDbPrompts = input.dbPrompts.filter(p => !playedIds.has(p.id));
+  
+  if (input.history.length < 3 && availableDbPrompts.length > 0) {
+    // Score and pick top from DB
+    const ranked = availableDbPrompts
+      .map(p => {
+        let score = weights[p.category] ?? 0.3;
+        p.tags.forEach(tag => score += (weights[tag] ?? 0) * 0.35);
+        return { p, score: score + Math.random() * 0.1 };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    const amountToTake = Math.min(input.count, ranked.length);
+    for (let i = 0; i < amountToTake; i++) {
+      results.push(ranked[i].p);
+    }
+  }
+
+  // Phase 2: AI Generation (if DB prompts are exhausted or we are past the preset phase)
+  let newTraitProfile = input.traitProfile || '';
+  if (results.length < input.count) {
+    const needed = input.count - results.length;
+    const generated = await generatePersonalizedPrompts(weights, input.history, input.traitProfile, needed);
+    
+    if (generated) {
+      newTraitProfile = generated.updatedProfile;
+      generated.prompts.forEach((gp, idx) => {
+        results.push({
+          id: `generated-${Date.now()}-${idx}`,
+          text: gp.text,
+          category: gp.category,
+          tags: gp.tags,
+        });
+      });
+    }
+  }
+
+  // Fallback if AI fails completely
+  if (results.length === 0) {
+    results.push({
+      id: `fallback-${Date.now()}`,
+      text: 'If you could change one decision from your past, knowing it would change where you are today, would you do it?',
+      category: 'Existential',
+      tags: ['reflection'],
+    });
+  }
+
+  return { prompts: results, updatedTraitProfile: newTraitProfile };
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+</file>
+
+</files>

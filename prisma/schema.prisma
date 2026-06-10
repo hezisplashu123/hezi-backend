@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  socialId  String?  @unique
+  name      String?
+  password  String?
+  provider  String   @default("email")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile UserProfile?
+}
+
+model UserProfile {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  vibeWeights  Json
+  traitProfile String?      // Stores the AI's psychological profile of the user
+  history      PromptPlay[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model QuestionPrompt {
+  id       String       @id @default(uuid())
+  text     String
+  category String
+  tags     String[]
+  plays    PromptPlay[]
+}
+
+model PromptPlay {
+  id         String   @id @default(uuid())
+  profileId  String
+  promptId   String
+  swipedLeft Boolean
+  timestamp  DateTime @default(now())
+
+  profile UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  prompt  QuestionPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+}
