@@ -72,7 +72,6 @@ export function applySeedWeights(seed: Record<string, number>): Record<string, n
 }
 
 // 🎯 STRICT CATEGORY DEFINITIONS
-// This guarantees the AI understands the exact format and mechanic of the category it is in.
 export type CategoryConfig = { 
   title: string; 
   dbCategories: string[]; 
@@ -257,7 +256,6 @@ export async function generatePersonalizedPrompts(
     `${h.swipedLeft ? 'ANSWERED' : 'SKIPPED'}: "${h.prompt.text}"`
   );
 
-  // The prompt is now completely dominated by FORMAT requirements so it doesn't drift.
   const systemPrompt = `
 You are an expert party game designer creating cards for a game called Hezi.
 
@@ -291,6 +289,15 @@ OUTPUT JSON FORMAT:
 }
 `;
 
+  // ----------------------------------------------------
+  // DEBUG LOGS - If these don't show up in terminal, 
+  // the backend isn't running this updated code.
+  // ----------------------------------------------------
+  console.log("\n\n========================================");
+  console.log(`🤖 CALLING OPENAI AI FOR: ${config.title}`);
+  console.log(`🛠️ FORMAT REQUIREMENT: ${config.formatRequirement}`);
+  console.log("========================================\n");
+
   try {
     const completion = await openai.chat.completions.create({
       messages: [{ role: 'system', content: systemPrompt }],
@@ -300,13 +307,18 @@ OUTPUT JSON FORMAT:
     });
     
     let content = completion.choices[0].message.content || '{}';
-    // Clean up any markdown blocks if the LLM hallucinated them despite JSON mode
     content = content.replace(/```json/g, '').replace(/```/g, '').trim();
     
     const parsed = JSON.parse(content);
     
     if (!parsed.prompts || !Array.isArray(parsed.prompts)) return null;
     
+    console.log("✅ AI GENERATED THESE QUESTIONS:");
+    parsed.prompts.forEach((p: any, idx: number) => {
+      console.log(`  ${idx + 1}. ${p.text}`);
+    });
+    console.log("========================================\n");
+
     return {
       updatedProfile: parsed.updatedTraitProfile || traitProfile || '',
       prompts: parsed.prompts.map((p: any) => ({
@@ -335,6 +347,14 @@ export async function getNextPromptsForProfile(input: {
   updatedTraitProfile: string;
   config: CategoryConfig;
 }> {
+  
+  // ----------------------------------------------------
+  // DEBUG LOGS
+  // ----------------------------------------------------
+  console.log(`\n\n📥 [REQUEST RECEIVED] Generating deck cards...`);
+  console.log(`🎮 Gamemode requested: ${input.gamemode}`);
+  console.log(`📂 Category requested: ${input.categoryId}`);
+
   const weights = parseVibeWeights(input.vibeWeights);
   const playedIds = new Set(input.playedPromptIds);
   let results: QuestionPromptCandidate[] = [];
@@ -346,13 +366,15 @@ export async function getNextPromptsForProfile(input: {
     config.dbCategories.includes(p.category)
   );
   
-  // We include both the strict title AND the underlying seed categories 
-  // so the AI learns from the preset cards properly.
   const categoryHistory = input.history.filter(h => 
     h.prompt.category === config.title || config.dbCategories.includes(h.prompt.category)
   );
 
+  console.log(`📊 Valid DB Prompts remaining: ${availableDbPrompts.length}`);
+  console.log(`📜 History count for this category: ${categoryHistory.length}`);
+
   if (categoryHistory.length < 3 && availableDbPrompts.length > 0) {
+    console.log(`🎲 Using PRESET database prompts...`);
     const ranked = availableDbPrompts
       .map(p => {
         let score = weights[p.category] ?? 0.3;
@@ -373,6 +395,7 @@ export async function getNextPromptsForProfile(input: {
   let newTraitProfile = input.traitProfile || '';
   if (results.length < input.count) {
     const needed = input.count - results.length;
+    console.log(`⚡ Need ${needed} more prompts. Sending to AI generator...`);
     
     const generated = await generatePersonalizedPrompts(
       weights, 
@@ -397,6 +420,7 @@ export async function getNextPromptsForProfile(input: {
   }
 
   if (results.length === 0) {
+    console.log(`⚠️ AI FAILED. Using fallback prompt.`);
     results.push({
       id: `fallback-${Date.now()}`,
       text: config.fallback,
