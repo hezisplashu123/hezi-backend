@@ -261,12 +261,11 @@ export function getCategoryConfig(categoryId: string): CategoryConfig {
 export async function generatePersonalizedPrompts(
   weights: Record<string, number>,
   categoryHistory: PromptPlayRecord[],
-  traitProfile: string | null,
   gamemode: string,
   config: CategoryConfig,
   playerCount: number,
   count: number = 5
-): Promise<{ updatedProfile: string; prompts: { text: string; category: string; tags: string[] }[] } | null> {
+): Promise<{ prompts: { text: string; category: string; tags: string[] }[] } | null> {
   
   const tagStats: Record<string, { seen: number; answered: number }> = {};
   categoryHistory.forEach(play => {
@@ -307,21 +306,17 @@ CATEGORY INSTRUCTIONS (CRITICAL):
 - Format Requirement: ${config.formatRequirement}
 - Banned Concepts: ${config.bannedConcepts}
 
-PLAYER PROFILE (Use this to tailor the topics, but DO NOT break the format rules above):
-- Profile Summary: ${traitProfile || 'New User, no data yet.'}
+PLAYER TASTES (Tailor the topics using these, but DO NOT break the format rules above):
 - Topics they like: ${lovedTags.length > 0 ? lovedTags.join(', ') : 'None yet'}
 - Topics they avoid: ${hatedTags.length > 0 ? hatedTags.join(', ') : 'None yet'}
 - Recent cards they saw:
 ${last3.length > 0 ? last3.join('\n') : 'No recent swipes in this category yet.'}
 
-TASK:
-1. Update the Trait Profile (1-2 sentences) based on their likes/dislikes.
-2. Generate EXACTLY ${count} new questions. 
-3. EVERY SINGLE QUESTION MUST PERFECTLY MATCH THE "FORMAT REQUIREMENT" AND "GROUP SIZE INSTRUCTIONS".
+TASK: Generate EXACTLY ${count} new questions. 
+EVERY SINGLE QUESTION MUST PERFECTLY MATCH THE "FORMAT REQUIREMENT" AND "GROUP SIZE INSTRUCTIONS".
 
 OUTPUT JSON FORMAT:
 {
-  "updatedTraitProfile": "...",
   "prompts": [
     { "text": "...", "tags": ["tag1", "tag2"] }
   ]
@@ -356,7 +351,6 @@ OUTPUT JSON FORMAT:
     console.log("========================================\n");
 
     return {
-      updatedProfile: parsed.updatedTraitProfile || traitProfile || '',
       prompts: parsed.prompts.map((p: any) => ({
         text: String(p.text),
         category: config.title, 
@@ -371,7 +365,6 @@ OUTPUT JSON FORMAT:
 
 export async function getNextPromptsForProfile(input: {
   vibeWeights: Prisma.JsonValue | null;
-  traitProfile: string | null;
   history: PromptPlayRecord[];
   dbPrompts: QuestionPromptCandidate[];
   playedPromptIds: string[];
@@ -381,7 +374,6 @@ export async function getNextPromptsForProfile(input: {
   playerCount: number;
 }): Promise<{
   prompts: QuestionPromptCandidate[];
-  updatedTraitProfile: string;
   config: CategoryConfig;
 }> {
   
@@ -423,7 +415,6 @@ export async function getNextPromptsForProfile(input: {
     }
   }
 
-  let newTraitProfile = input.traitProfile || '';
   if (results.length < input.count) {
     const needed = input.count - results.length;
     console.log(`⚡ Need ${needed} more prompts. Sending to AI generator...`);
@@ -431,7 +422,6 @@ export async function getNextPromptsForProfile(input: {
     const generated = await generatePersonalizedPrompts(
       weights, 
       categoryHistory, 
-      input.traitProfile, 
       input.gamemode, 
       config,
       input.playerCount,
@@ -439,7 +429,6 @@ export async function getNextPromptsForProfile(input: {
     );
     
     if (generated) {
-      newTraitProfile = generated.updatedProfile;
       generated.prompts.forEach((gp, idx) => {
         results.push({
           id: `generated-${Date.now()}-${idx}`,
@@ -461,5 +450,5 @@ export async function getNextPromptsForProfile(input: {
     });
   }
 
-  return { prompts: results, updatedTraitProfile: newTraitProfile, config };
+  return { prompts: results, config };
 }

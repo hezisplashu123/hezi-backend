@@ -34,7 +34,6 @@ export async function ensureProfileHandler(req: Request, res: Response) {
 }
 
 export async function getNextPrompt(req: Request, res: Response) {
-  // Extract playerCount from the request body
   const { profileId, gamemode = 'friendship', categoryId = 'friends-deep-talk', count = 5, playerCount = 3 } = req.body;
   if (!profileId) return res.status(400).json({ error: 'profileId is required' });
 
@@ -60,17 +59,15 @@ export async function getNextPrompt(req: Request, res: Response) {
 
     const result = await getNextPromptsForProfile({
       vibeWeights: profile.vibeWeights,
-      traitProfile: profile.traitProfile,
       history,
       dbPrompts,
       playedPromptIds,
       gamemode,
       categoryId,
       count,
-      playerCount, // Pass to AI
+      playerCount,
     });
 
-    // Save generated items to DB with the exact Title defined by the backend map
     const savedPrompts = await Promise.all(
       result.prompts.map(async (p) => {
         if (p.id.startsWith('generated-') || p.id.startsWith('fallback-')) {
@@ -82,12 +79,8 @@ export async function getNextPrompt(req: Request, res: Response) {
       })
     );
 
-    await prisma.userProfile.update({
-      where: { id: profileId },
-      data: { traitProfile: result.updatedTraitProfile },
-    });
-
-    res.json({ prompts: savedPrompts, traitProfile: result.updatedTraitProfile });
+    // Removed the traitProfile update step entirely.
+    res.json({ prompts: savedPrompts });
   } catch (error) {
     console.error('Next prompt error:', error);
     res.status(500).json({ error: 'Failed to get next prompts' });
