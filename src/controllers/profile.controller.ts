@@ -34,8 +34,8 @@ export async function ensureProfileHandler(req: Request, res: Response) {
 }
 
 export async function getNextPrompt(req: Request, res: Response) {
-  // We extract gamemode and categoryId directly from the mobile app's POST body
-  const { profileId, gamemode = 'friendship', categoryId = 'friends-deep-talk', count = 5 } = req.body;
+  // Extract playerCount from the request body
+  const { profileId, gamemode = 'friendship', categoryId = 'friends-deep-talk', count = 5, playerCount = 3 } = req.body;
   if (!profileId) return res.status(400).json({ error: 'profileId is required' });
 
   try {
@@ -67,6 +67,7 @@ export async function getNextPrompt(req: Request, res: Response) {
       gamemode,
       categoryId,
       count,
+      playerCount, // Pass to AI
     });
 
     // Save generated items to DB with the exact Title defined by the backend map

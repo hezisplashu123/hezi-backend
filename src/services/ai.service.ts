@@ -71,7 +71,6 @@ export function applySeedWeights(seed: Record<string, number>): Record<string, n
   return normalizeWeights({ ...DEFAULT_VIBE_WEIGHTS, ...seed });
 }
 
-// 🎯 STRICT CATEGORY DEFINITIONS
 export type CategoryConfig = { 
   title: string; 
   dbCategories: string[]; 
@@ -81,7 +80,6 @@ export type CategoryConfig = {
 };
 
 const CATEGORY_MAP: Record<string, CategoryConfig> = {
-  // === FRIENDS ===
   'friends-icebreakers': {
     title: 'Icebreakers',
     dbCategories: ['Funny', 'Scenarios'],
@@ -124,8 +122,6 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     formatRequirement: 'Must provoke a fun debate or reveal a controversial/funny opinion.',
     fallback: 'What socially acceptable behavior should be completely banned?'
   },
-  
-  // === LOVERS ===
   'lovers-warm-up': {
     title: 'Warm Up',
     dbCategories: ['Funny', 'Relationships'],
@@ -168,8 +164,6 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     formatRequirement: 'EVERY PROMPT MUST START WITH: "What if we", "If we had to", or "Imagine we".',
     fallback: 'If we had to drop everything and open a business together tomorrow, what would it be?'
   },
-
-  // === FAMILY ===
   'family-icebreakers': {
     title: 'Icebreakers',
     dbCategories: ['Funny', 'Scenarios'],
@@ -231,6 +225,7 @@ export async function generatePersonalizedPrompts(
   traitProfile: string | null,
   gamemode: string,
   config: CategoryConfig,
+  playerCount: number,
   count: number = 5
 ): Promise<{ updatedProfile: string; prompts: { text: string; category: string; tags: string[] }[] } | null> {
   
@@ -259,7 +254,7 @@ export async function generatePersonalizedPrompts(
   const systemPrompt = `
 You are an expert party game designer creating cards for a game called Hezi.
 
-GAME CONTEXT: The user is playing with their ${gamemode.toUpperCase()}.
+GAME CONTEXT: The user is playing with their ${gamemode.toUpperCase()}. There are ${playerCount} players currently playing in the room. Adapt the vibe to fit this group size!
 CURRENT DECK/CATEGORY: "${config.title}"
 
 CRITICAL GAME MECHANICS (YOU MUST FOLLOW THESE OR THE APP WILL BREAK):
@@ -289,12 +284,9 @@ OUTPUT JSON FORMAT:
 }
 `;
 
-  // ----------------------------------------------------
-  // DEBUG LOGS - If these don't show up in terminal, 
-  // the backend isn't running this updated code.
-  // ----------------------------------------------------
   console.log("\n\n========================================");
   console.log(`🤖 CALLING OPENAI AI FOR: ${config.title}`);
+  console.log(`👥 PLAYERS: ${playerCount}`);
   console.log(`🛠️ FORMAT REQUIREMENT: ${config.formatRequirement}`);
   console.log("========================================\n");
 
@@ -342,15 +334,13 @@ export async function getNextPromptsForProfile(input: {
   gamemode: string;
   categoryId: string;
   count: number;
+  playerCount: number;
 }): Promise<{
   prompts: QuestionPromptCandidate[];
   updatedTraitProfile: string;
   config: CategoryConfig;
 }> {
   
-  // ----------------------------------------------------
-  // DEBUG LOGS
-  // ----------------------------------------------------
   console.log(`\n\n📥 [REQUEST RECEIVED] Generating deck cards...`);
   console.log(`🎮 Gamemode requested: ${input.gamemode}`);
   console.log(`📂 Category requested: ${input.categoryId}`);
@@ -369,9 +359,6 @@ export async function getNextPromptsForProfile(input: {
   const categoryHistory = input.history.filter(h => 
     h.prompt.category === config.title || config.dbCategories.includes(h.prompt.category)
   );
-
-  console.log(`📊 Valid DB Prompts remaining: ${availableDbPrompts.length}`);
-  console.log(`📜 History count for this category: ${categoryHistory.length}`);
 
   if (categoryHistory.length < 3 && availableDbPrompts.length > 0) {
     console.log(`🎲 Using PRESET database prompts...`);
@@ -403,6 +390,7 @@ export async function getNextPromptsForProfile(input: {
       input.traitProfile, 
       input.gamemode, 
       config,
+      input.playerCount,
       needed
     );
     
