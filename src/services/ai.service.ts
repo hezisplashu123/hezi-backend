@@ -14,7 +14,9 @@ export const DEFAULT_VIBE_WEIGHTS: Record<string, number> = {
   Vulnerability: 0.5,
 };
 
-const WEIGHT_DELTA = 0.12;
+// Dynamic Weighting: Calibrate fast early on, tweak slowly later.
+const WEIGHT_DELTA_CALIBRATION = 0.25; // First 10 swipes
+const WEIGHT_DELTA_STABILIZED = 0.08;  // After 10 swipes
 const MIN_WEIGHT = 0.05;
 const MAX_WEIGHT = 1.0;
 
@@ -52,10 +54,13 @@ export function applySwipeFeedback(
   weights: Record<string, number>,
   category: string,
   tags: string[],
-  swipedLeft: boolean
+  swipedLeft: boolean,
+  historyLength: number
 ): Record<string, number> {
   const next = { ...parseVibeWeights(weights) };
-  const delta = swipedLeft ? WEIGHT_DELTA : -WEIGHT_DELTA;
+  // If they have played less than 10 cards, we make HUGE adjustments to dial them in fast.
+  const deltaAmount = historyLength <= 10 ? WEIGHT_DELTA_CALIBRATION : WEIGHT_DELTA_STABILIZED;
+  const delta = swipedLeft ? deltaAmount : -deltaAmount;
   const keys = new Set([category, ...tags]);
 
   keys.forEach((key) => {
@@ -86,18 +91,18 @@ export type CategoryConfig = {
 
 const GLOBAL_AI_RULES = `
 CRITICAL TONE CONSTRAINTS:
-1. NEVER use "Therapy-Speak". Ban words like: boundary, journey, unpack, toxic trait, inner child, validate, navigate, realm, tapestry, or profound.
+1. NEVER use "Therapy-Speak". Ban words like: boundary, journey, unpack, toxic trait, inner child, validate, navigate, realm, tapestry, profound, delve, testament, or explore.
 2. NEVER use "Reddit-Speak". Do not ask generic internet questions like "What is a socially acceptable scam?" or "What is a common misconception?"
-3. The tone must be conversational, slightly edgy, highly specific, and deeply human. Speak like a witty 20-something having drinks with close friends.
+3. The tone must be conversational, slightly edgy, highly specific, and deeply human. Speak like a witty friend having drinks with close friends.
 `;
 
 function getPlayerCountRules(playerCount: number): string {
   if (playerCount <= 3) {
-    return "TIER 1 (2-3 Players): Make it deeply personal. Ask questions that encourage long-form storytelling, deep vulnerability, and highly specific personal confessions. It is safe to ask questions that take a few minutes to answer.";
+    return "TIER 1 (2-3 Players): Make it deeply personal. Ask questions that encourage long-form storytelling, deep vulnerability, and highly specific personal confessions.";
   } else if (playerCount <= 6) {
-    return "TIER 2 (4-6 Players): Focus on group dynamics, calling each other out, and shared lore. Use 'Who in this room...' prompts. The questions should provoke funny debates but keep answers relatively concise to keep the game moving.";
+    return "TIER 2 (4-6 Players): Focus on group dynamics, calling each other out, and shared lore. Use 'Who in this room...' prompts. The questions should provoke funny debates.";
   } else {
-    return "TIER 3 (7+ Players): CRITICAL: Do NOT ask long-winded, deep, or storytelling questions; the game will stall. Generate rapid-fire, highly polarizing hot takes, chaotic hypotheticals, or 'Raise your hand if...' questions that spark immediate, loud reactions.";
+    return "TIER 3 (7+ Players): CRITICAL: Do NOT ask long-winded, deep, or storytelling questions. Generate rapid-fire, highly polarizing hot takes, chaotic hypotheticals, or 'Raise your hand if...' questions that spark immediate, loud reactions.";
   }
 }
 
@@ -108,7 +113,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     dbCategories: ['Funny', 'Scenarios'],
     rules: 'Spark immediate, loud, polarizing debates. Keep it cynical, witty, and slightly toxic.',
     formatRequirement: 'Ask for a highly specific hot take or polarizing opinion.',
-    bannedConcepts: 'Do not ask about favorite colors, foods, or mild pet peeves. Avoid generic AskReddit questions.',
+    bannedConcepts: 'Do not ask about favorite colors, foods, or mild pet peeves.',
     fallback: 'What is a massive "red flag" in a person that you actually find highly attractive?'
   },
   'friends-most-likely': {
@@ -132,7 +137,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     dbCategories: ['Nostalgia'],
     rules: 'Focus on cringe eras, teenage toxicity, and past mistakes.',
     formatRequirement: 'Must reference middle school, high school, or early internet days.',
-    bannedConcepts: 'Do not ask about nice, sweet childhood memories like favorite cartoons. Keep it focused on the "cringe."',
+    bannedConcepts: 'Do not ask about nice, sweet childhood memories like favorite cartoons.',
     fallback: 'What is the most undeniably toxic thing you did in your first real relationship?'
   },
   'friends-confessions': {
@@ -148,7 +153,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     dbCategories: ['Existential', 'Vulnerability', 'Relationships'],
     rules: 'Heavy, philosophical, and cutting through the BS. Ask about painful truths, deep flaws, or raw existential reality.',
     formatRequirement: 'Ask a thought-provoking, deep open-ended question that makes them hesitate before answering.',
-    bannedConcepts: 'NO THERAPY SPEAK. Do not use words like "journey," "unpack," "healing," or "profound."',
+    bannedConcepts: 'NO THERAPY SPEAK.',
     fallback: 'Are you actually a good person, or are you just terrified of people being mad at you?'
   },
 
@@ -264,6 +269,7 @@ export async function generatePersonalizedPrompts(
   gamemode: string,
   config: CategoryConfig,
   playerCount: number,
+  ageRange: string | null,
   count: number = 5
 ): Promise<{ prompts: { text: string; category: string; tags: string[] }[] } | null> {
   
@@ -272,7 +278,7 @@ export async function generatePersonalizedPrompts(
     play.prompt.tags.forEach(tag => {
       if (!tagStats[tag]) tagStats[tag] = { seen: 0, answered: 0 };
       tagStats[tag].seen += 1;
-      if (play.swipedLeft) tagStats[tag].answered += 1;
+      if (play.swipedLeft) tagStats[tag].answered += 1; // Actually swipedLeft in UI is usually Skip, we assume here it's "liked/answered" based on controller logic
     });
   });
 
@@ -295,6 +301,7 @@ You are an expert party game designer creating cards for an edgy, deep conversat
 GAME CONTEXT: The user is playing with their ${gamemode.toUpperCase()}.
 CURRENT DECK/CATEGORY: "${config.title}"
 NUMBER OF PLAYERS: ${playerCount}
+USER AGE RANGE: ${ageRange || 'Unknown'} (TAILOR THE LIFE STAGE AND REFERENCES TO THIS AGE BRACKET)
 
 ${GLOBAL_AI_RULES}
 
@@ -313,7 +320,7 @@ PLAYER TASTES (Tailor the topics using these, but DO NOT break the format rules 
 ${last3.length > 0 ? last3.join('\n') : 'No recent swipes in this category yet.'}
 
 TASK: Generate EXACTLY ${count} new questions. 
-EVERY SINGLE QUESTION MUST PERFECTLY MATCH THE "FORMAT REQUIREMENT" AND "GROUP SIZE INSTRUCTIONS".
+EVERY SINGLE QUESTION MUST PERFECTLY MATCH THE "FORMAT REQUIREMENT", "GROUP SIZE INSTRUCTIONS", AND FIT THEIR "AGE RANGE".
 
 OUTPUT JSON FORMAT:
 {
@@ -325,7 +332,7 @@ OUTPUT JSON FORMAT:
 
   console.log("\n\n========================================");
   console.log(`🤖 CALLING OPENAI AI FOR: ${config.title}`);
-  console.log(`👥 PLAYERS: ${playerCount}`);
+  console.log(`👥 PLAYERS: ${playerCount} | 🎂 AGE: ${ageRange || 'Unknown'}`);
   console.log(`🛠️ FORMAT REQUIREMENT: ${config.formatRequirement}`);
   console.log("========================================\n");
 
@@ -372,6 +379,7 @@ export async function getNextPromptsForProfile(input: {
   categoryId: string;
   count: number;
   playerCount: number;
+  ageRange: string | null;
 }): Promise<{
   prompts: QuestionPromptCandidate[];
   config: CategoryConfig;
@@ -387,6 +395,7 @@ export async function getNextPromptsForProfile(input: {
 
   const config = getCategoryConfig(input.categoryId);
 
+  // Grab matching DB prompts (The Calibration Deck)
   const availableDbPrompts = input.dbPrompts.filter(p => 
     !playedIds.has(p.id) && 
     config.dbCategories.includes(p.category)
@@ -396,13 +405,14 @@ export async function getNextPromptsForProfile(input: {
     h.prompt.category === config.title || config.dbCategories.includes(h.prompt.category)
   );
 
-  if (categoryHistory.length < 3 && availableDbPrompts.length > 0) {
-    console.log(`🎲 Using PRESET database prompts...`);
+  // If user has swiped on less than 5 cards in this category, heavily rely on the DB Calibration Deck
+  if (categoryHistory.length < 5 && availableDbPrompts.length > 0) {
+    console.log(`🎲 Using PRESET database prompts for calibration...`);
     const ranked = availableDbPrompts
       .map(p => {
         let score = weights[p.category] ?? 0.3;
         p.tags.forEach(tag => score += (weights[tag] ?? 0) * 0.35);
-        return { p, score: score + Math.random() * 0.1 };
+        return { p, score: score + Math.random() * 0.1 }; // Randomness to avoid predictable sorting
       })
       .sort((a, b) => b.score - a.score);
 
@@ -415,6 +425,7 @@ export async function getNextPromptsForProfile(input: {
     }
   }
 
+  // If we still need more cards, ask the AI to generate them
   if (results.length < input.count) {
     const needed = input.count - results.length;
     console.log(`⚡ Need ${needed} more prompts. Sending to AI generator...`);
@@ -425,6 +436,7 @@ export async function getNextPromptsForProfile(input: {
       input.gamemode, 
       config,
       input.playerCount,
+      input.ageRange,
       needed
     );
     
@@ -440,6 +452,7 @@ export async function getNextPromptsForProfile(input: {
     }
   }
 
+  // Fallback if AI fails completely
   if (results.length === 0) {
     console.log(`⚠️ AI FAILED. Using fallback prompt.`);
     results.push({

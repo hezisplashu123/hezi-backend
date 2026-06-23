@@ -8,25 +8,33 @@ import {
   parseVibeWeights,
 } from '../services/ai.service';
 
-export async function ensureProfile(userId: string, seedWeights?: Record<string, number>) {
+export async function ensureProfile(userId: string, seedWeights?: Record<string, number>, ageRange?: string) {
   let profile = await prisma.userProfile.findUnique({ where: { userId } });
+  
   if (!profile) {
     profile = await prisma.userProfile.create({
       data: {
         userId,
         vibeWeights: seedWeights ? applySeedWeights(seedWeights) : DEFAULT_VIBE_WEIGHTS,
         traitProfile: null,
+        ageRange: ageRange || null,
       },
+    });
+  } else if (ageRange && profile.ageRange !== ageRange) {
+    // Update age range if provided and different
+    profile = await prisma.userProfile.update({
+      where: { userId },
+      data: { ageRange }
     });
   }
   return profile;
 }
 
 export async function ensureProfileHandler(req: Request, res: Response) {
-  const { userId, seedWeights } = req.body;
+  const { userId, seedWeights, ageRange } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId is required' });
   try {
-    const profile = await ensureProfile(String(userId), seedWeights);
+    const profile = await ensureProfile(String(userId), seedWeights, ageRange);
     res.json(profile);
   } catch (error) {
     res.status(500).json({ error: 'Failed to ensure profile' });
@@ -66,6 +74,7 @@ export async function getNextPrompt(req: Request, res: Response) {
       categoryId,
       count,
       playerCount,
+      ageRange: profile.ageRange,
     });
 
     const savedPrompts = await Promise.all(
@@ -79,7 +88,6 @@ export async function getNextPrompt(req: Request, res: Response) {
       })
     );
 
-    // Removed the traitProfile update step entirely.
     res.json({ prompts: savedPrompts });
   } catch (error) {
     console.error('Next prompt error:', error);
@@ -96,20 +104,27 @@ export async function recordSwipe(req: Request, res: Response) {
   }
 
   try {
-    const profile = await prisma.userProfile.findUnique({ where: { id: profileId } });
+    const profile = await prisma.userProfile.findUnique({ 
+      where: { id: profileId },
+      include: { _count: { select: { history: true } } }
+    });
     const prompt = await prisma.questionPrompt.findUnique({ where: { id: promptId } });
     if (!profile || !prompt) return res.status(404).json({ error: 'Profile or prompt not found' });
+
+    const historyLength = profile._count.history;
 
     const updatedWeights = applySwipeFeedback(
       parseVibeWeights(profile.vibeWeights),
       prompt.category,
       prompt.tags,
-      swipedLeft
+      swipedLeft,
+      historyLength
     );
 
     const play = await prisma.promptPlay.create({
       data: { profileId, promptId, swipedLeft },
     });
+    
     await prisma.userProfile.update({
       where: { id: profileId },
       data: { vibeWeights: updatedWeights },

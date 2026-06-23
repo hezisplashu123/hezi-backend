@@ -25,6 +25,7 @@ model UserProfile {
   userId       String       @unique
   vibeWeights  Json
   traitProfile String?      // Stores the AI's psychological profile of the user
+  ageRange     String?      // e.g., "18-21", "22-25", "26-29", "30-39", "40+"
   history      PromptPlay[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
