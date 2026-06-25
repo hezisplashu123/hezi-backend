@@ -279,7 +279,7 @@ export async function generatePersonalizedPrompts(
     play.prompt.tags.forEach(tag => {
       if (!tagStats[tag]) tagStats[tag] = { seen: 0, answered: 0 };
       tagStats[tag].seen += 1;
-      if (play.swipedLeft) tagStats[tag].answered += 1; // Actually swipedLeft in UI is usually Skip, we assume here it's "liked/answered" based on controller logic
+      if (play.swipedLeft) tagStats[tag].answered += 1; 
     });
   });
 
@@ -396,10 +396,11 @@ export async function getNextPromptsForProfile(input: {
 
   const config = getCategoryConfig(input.categoryId);
 
-  // Grab matching DB prompts (The Calibration Deck)
+  // BUG FIX: The filter now correctly checks if the prompt category matches the config.title
+  // (e.g. "Icebreakers" === "Icebreakers") instead of the old abstract categories.
   const availableDbPrompts = input.dbPrompts.filter(p => 
     !playedIds.has(p.id) && 
-    config.dbCategories.includes(p.category)
+    (p.category === config.title || config.dbCategories.includes(p.category))
   );
   
   const categoryHistory = input.history.filter(h => 
