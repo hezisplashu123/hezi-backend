@@ -91,18 +91,19 @@ export type CategoryConfig = {
 
 const GLOBAL_AI_RULES = `
 CRITICAL TONE CONSTRAINTS:
-1. NEVER use "Therapy-Speak". Ban words like: boundary, journey, unpack, toxic trait, inner child, validate, navigate, realm, tapestry, profound, delve, testament, or explore.
-2. NEVER use "Reddit-Speak". Do not ask generic internet questions like "What is a socially acceptable scam?" or "What is a common misconception?"
-3. The tone must be conversational, slightly edgy, highly specific, and deeply human. Speak like a witty friend having drinks with close friends.
+1. NO HURTFUL OR DEPRESSING SHIT: The game must feel fun, chill, and highly social. NEVER ask questions that would genuinely hurt someone's feelings, cause an existential crisis, or make them feel bad about themselves.
+2. NO "THERAPY-SPEAK" OR INTERROGATIONS: Ban words like: boundary, journey, unpack, toxic trait, inner child, validate, navigate. Do not sound like a therapist.
+3. NO "ASK-REDDIT" ABSTRACTS: Do not ask generic internet questions like "What is a societal scam?" Focus entirely on interpersonal relationships, friends, and human behavior.
+4. The tone must be conversational and chill. Speak like a witty 20-something having drinks with close friends.
 `;
 
 function getPlayerCountRules(playerCount: number): string {
   if (playerCount <= 3) {
-    return "TIER 1 (2-3 Players): Make it deeply personal. Ask questions that encourage long-form storytelling, deep vulnerability, and highly specific personal confessions.";
+    return "TIER 1 (2-3 Players): Make it personal but uplifting. Ask questions that encourage opening up about funny secrets, lighthearted reflections, and strong opinions.";
   } else if (playerCount <= 6) {
-    return "TIER 2 (4-6 Players): Focus on group dynamics, calling each other out, and shared lore. Use 'Who in this room...' prompts. The questions should provoke funny debates.";
+    return "TIER 2 (4-6 Players): Focus on group dynamics, funny call-outs, and shared lore. Use 'Who in this room...' prompts. The questions should provoke fun, energetic debates.";
   } else {
-    return "TIER 3 (7+ Players): CRITICAL: Do NOT ask long-winded, deep, or storytelling questions. Generate rapid-fire, highly polarizing hot takes, chaotic hypotheticals, or 'Raise your hand if...' questions that spark immediate, loud reactions.";
+    return "TIER 3 (7+ Players): CRITICAL: Do NOT ask long-winded or storytelling questions. Generate rapid-fire, highly polarizing hot takes, chaotic hypotheticals, or 'Raise your hand if...' questions that spark immediate, loud reactions.";
   }
 }
 
@@ -111,50 +112,50 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'friends-icebreakers': {
     title: 'Icebreakers',
     dbCategories: ['Funny', 'Scenarios'],
-    rules: 'Spark immediate, loud, polarizing debates. Keep it cynical, witty, and slightly toxic.',
-    formatRequirement: 'Ask for a highly specific hot take or polarizing opinion.',
-    bannedConcepts: 'Do not ask about favorite colors, foods, or mild pet peeves.',
-    fallback: 'What is a massive "red flag" in a person that you actually find highly attractive?'
+    rules: 'Spark immediate, fun debates about dating, social rules, and harmless opinions.',
+    formatRequirement: 'Ask for a highly specific hot take or a relatable social scenario.',
+    bannedConcepts: 'Do not ask about favorite colors, foods, abstract societal issues, or boring pet peeves.',
+    fallback: 'What is a highly specific, harmless thing someone can do on a first date that guarantees you will ghost them?'
   },
   'friends-most-likely': {
     title: "Most Likely",
     dbCategories: ["Who's Most Likely", "Funny"],
-    rules: 'Expose the group\'s chaotic or toxic traits and playfully roast each other.',
-    formatRequirement: 'EVERY prompt MUST begin exactly with: "Who is most likely to..."',
-    bannedConcepts: 'No generic "survive a zombie apocalypse" or "win the lottery" questions. Make it about unhinged, specific human behavior.',
-    fallback: 'Who is most likely to seamlessly lie their way into a VIP section and leave the rest of us outside?'
+    rules: 'Playfully call out the group\'s chaotic or funny traits.',
+    formatRequirement: 'EVERY prompt MUST begin exactly with: "Who in this room is most likely to..."',
+    bannedConcepts: 'No generic "survive a zombie apocalypse" or genuinely mean-spirited questions.',
+    fallback: 'Who in this room is most likely to defend their partner\'s terrible behavior just because they are too scared to be single?'
   },
   'friends-what-ifs': {
     title: 'What Ifs',
     dbCategories: ['Scenarios'],
-    rules: 'Create high-stakes, morally grey, or absurd situations that test loyalty or ethics.',
+    rules: 'Create fun, high-stakes, morally grey, or absurd situations.',
     formatRequirement: 'Put the group or the individual in a wild scenario that requires a difficult choice.',
     bannedConcepts: 'No boring "what superpower would you have" questions.',
-    fallback: 'If you had a button that gave you $1 million but permanently ruined the life of someone you went to high school with, how many times do you press it?'
+    fallback: 'You find a briefcase with $100,000, but keeping it means your best friend gets fired from their job. Are you taking the money?'
   },
   'friends-nostalgia': {
     title: 'Nostalgia',
     dbCategories: ['Nostalgia'],
-    rules: 'Focus on cringe eras, teenage toxicity, and past mistakes.',
-    formatRequirement: 'Must reference middle school, high school, or early internet days.',
-    bannedConcepts: 'Do not ask about nice, sweet childhood memories like favorite cartoons.',
-    fallback: 'What is the most undeniably toxic thing you did in your first real relationship?'
+    rules: 'Focus on wild nights out, core memories, and funny past drama with friends.',
+    formatRequirement: 'Ask about a memorable moment, inside joke, or era from the past.',
+    bannedConcepts: 'CRITICAL: DO NOT ask about middle school cringe, teenage angst, or childhood trauma. Keep it fun and friend-oriented.',
+    fallback: 'What was the absolute wildest night out you’ve ever had where almost nothing went according to plan?'
   },
   'friends-confessions': {
     title: 'Confessions',
     dbCategories: ['Vulnerability', 'Funny'],
-    rules: 'Expose hypocrisy, petty judgments, and mild selfishness. Make the user call themselves out.',
-    formatRequirement: 'Ask the user to admit a terrible trait or an unspoken truth about how they view others.',
-    bannedConcepts: 'No deep trauma or depressing secrets. Keep it focused on social hypocrisy.',
-    fallback: 'What is a terrible trait you have that you secretly judge other people for having?'
+    rules: 'Lighthearted secrets, petty revenge, and funny truths. Opening up, but keeping it good vibes.',
+    formatRequirement: 'Ask the user to admit a funny secret or a petty/harmless action they took.',
+    bannedConcepts: 'CRITICAL: Do not ask about deep manipulative behavior, depressing guilt, or actual terrible traits.',
+    fallback: 'Whose life do you casually keep tabs on just because it makes you feel better about your own?'
   },
   'friends-deep-talk': {
     title: 'Deep Talk',
     dbCategories: ['Existential', 'Vulnerability', 'Relationships'],
-    rules: 'Heavy, philosophical, and cutting through the BS. Ask about painful truths, deep flaws, or raw existential reality.',
-    formatRequirement: 'Ask a thought-provoking, deep open-ended question that makes them hesitate before answering.',
-    bannedConcepts: 'NO THERAPY SPEAK.',
-    fallback: 'Are you actually a good person, or are you just terrified of people being mad at you?'
+    rules: 'Reflective, uplifting, and honest conversation without being a downer.',
+    formatRequirement: 'Ask a thought-provoking, open-ended question about personal growth or relationship dynamics.',
+    bannedConcepts: 'CRITICAL: NO DEPRESSING SHIT. Do not ask about painful truths, faking personalities, or existential dread.',
+    fallback: 'What is a belief you held strongly a few years ago that you have quietly abandoned?'
   },
 
   // LOVERS
@@ -296,7 +297,7 @@ export async function generatePersonalizedPrompts(
   );
 
   const systemPrompt = `
-You are an expert party game designer creating cards for an edgy, deep conversation game called Hezi.
+You are an expert party game designer creating cards for a chill, social conversation game called Hezi.
 
 GAME CONTEXT: The user is playing with their ${gamemode.toUpperCase()}.
 CURRENT DECK/CATEGORY: "${config.title}"
