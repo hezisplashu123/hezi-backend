@@ -80,8 +80,14 @@ export async function getNextPrompt(req: Request, res: Response) {
     const savedPrompts = await Promise.all(
       result.prompts.map(async (p) => {
         if (p.id.startsWith('generated-') || p.id.startsWith('fallback-')) {
+          // BUG FIX: Inject gamemode into newly created prompts so they save correctly
           return await prisma.questionPrompt.create({
-            data: { text: p.text, category: result.config.title, tags: p.tags }, 
+            data: { 
+              text: p.text, 
+              category: result.config.title, 
+              gamemode: gamemode,
+              tags: p.tags 
+            }, 
           });
         }
         return p;

@@ -14,9 +14,8 @@ export const DEFAULT_VIBE_WEIGHTS: Record<string, number> = {
   Vulnerability: 0.5,
 };
 
-// Dynamic Weighting: Calibrate fast early on, tweak slowly later.
-const WEIGHT_DELTA_CALIBRATION = 0.25; // First 10 swipes
-const WEIGHT_DELTA_STABILIZED = 0.08;  // After 10 swipes
+const WEIGHT_DELTA_CALIBRATION = 0.25; 
+const WEIGHT_DELTA_STABILIZED = 0.08;  
 const MIN_WEIGHT = 0.05;
 const MAX_WEIGHT = 1.0;
 
@@ -24,6 +23,7 @@ export type QuestionPromptCandidate = {
   id: string;
   text: string;
   category: string;
+  gamemode: string;
   tags: string[];
 };
 
@@ -58,7 +58,6 @@ export function applySwipeFeedback(
   historyLength: number
 ): Record<string, number> {
   const next = { ...parseVibeWeights(weights) };
-  // If they have played less than 10 cards, we make HUGE adjustments to dial them in fast.
   const deltaAmount = historyLength <= 10 ? WEIGHT_DELTA_CALIBRATION : WEIGHT_DELTA_STABILIZED;
   const delta = swipedLeft ? deltaAmount : -deltaAmount;
   const keys = new Set([category, ...tags]);
@@ -85,10 +84,6 @@ export type CategoryConfig = {
   fallback: string; 
 };
 
-// ==========================================
-// AI PROMPT ENGINEERING RULES
-// ==========================================
-
 const GLOBAL_AI_RULES = `
 CRITICAL TONE CONSTRAINTS:
 1. NO HURTFUL OR DEPRESSING SHIT: The game must feel fun, chill, and highly social. NEVER ask questions that would genuinely hurt someone's feelings, cause an existential crisis, or make them feel bad about themselves.
@@ -101,7 +96,7 @@ function getPlayerCountRules(playerCount: number): string {
   if (playerCount <= 3) {
     return "TIER 1 (2-3 Players): Make it personal but uplifting. Ask questions that encourage opening up about funny secrets, lighthearted reflections, and strong opinions.";
   } else if (playerCount <= 6) {
-    return "TIER 2 (4-6 Players): Focus on group dynamics, funny call-outs, and shared lore. Use 'Who in this room...' prompts. The questions should provoke fun, energetic debates.";
+    return "TIER 2 (4-6 Players): Focus on group dynamics, funny call-outs, and shared lore. Use 'Who is most likely to...' prompts. The questions should provoke fun, energetic debates.";
   } else {
     return "TIER 3 (7+ Players): CRITICAL: Do NOT ask long-winded or storytelling questions. Generate rapid-fire, highly polarizing hot takes, chaotic hypotheticals, or 'Raise your hand if...' questions that spark immediate, loud reactions.";
   }
@@ -121,9 +116,9 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     title: "Most Likely",
     dbCategories: ["Who's Most Likely", "Funny"],
     rules: 'Playfully call out the group\'s chaotic or funny traits.',
-    formatRequirement: 'EVERY prompt MUST begin exactly with: "Who in this room is most likely to..."',
+    formatRequirement: 'EVERY prompt MUST begin exactly with: "Who is most likely to..." or "Who would..."',
     bannedConcepts: 'No generic "survive a zombie apocalypse" or genuinely mean-spirited questions.',
-    fallback: 'Who in this room is most likely to defend their partner\'s terrible behavior just because they are too scared to be single?'
+    fallback: 'Who is most likely to defend their partner\'s terrible behavior just because they are too scared to be single?'
   },
   'friends-what-ifs': {
     title: 'What Ifs',
@@ -396,10 +391,10 @@ export async function getNextPromptsForProfile(input: {
 
   const config = getCategoryConfig(input.categoryId);
 
-  // BUG FIX: The filter now correctly checks if the prompt category matches the config.title
-  // (e.g. "Icebreakers" === "Icebreakers") instead of the old abstract categories.
+  // BUG FIX: Filter heavily by gamemode to prevent cross-contamination
   const availableDbPrompts = input.dbPrompts.filter(p => 
     !playedIds.has(p.id) && 
+    p.gamemode === input.gamemode &&
     (p.category === config.title || config.dbCategories.includes(p.category))
   );
   
@@ -407,14 +402,13 @@ export async function getNextPromptsForProfile(input: {
     h.prompt.category === config.title || config.dbCategories.includes(h.prompt.category)
   );
 
-  // If user has swiped on less than 5 cards in this category, heavily rely on the DB Calibration Deck
   if (categoryHistory.length < 5 && availableDbPrompts.length > 0) {
     console.log(`🎲 Using PRESET database prompts for calibration...`);
     const ranked = availableDbPrompts
       .map(p => {
         let score = weights[p.category] ?? 0.3;
         p.tags.forEach(tag => score += (weights[tag] ?? 0) * 0.35);
-        return { p, score: score + Math.random() * 0.1 }; // Randomness to avoid predictable sorting
+        return { p, score: score + Math.random() * 0.1 }; 
       })
       .sort((a, b) => b.score - a.score);
 
@@ -427,7 +421,6 @@ export async function getNextPromptsForProfile(input: {
     }
   }
 
-  // If we still need more cards, ask the AI to generate them
   if (results.length < input.count) {
     const needed = input.count - results.length;
     console.log(`⚡ Need ${needed} more prompts. Sending to AI generator...`);
@@ -448,19 +441,20 @@ export async function getNextPromptsForProfile(input: {
           id: `generated-${Date.now()}-${idx}`,
           text: gp.text,
           category: gp.category,
+          gamemode: input.gamemode,
           tags: gp.tags,
         });
       });
     }
   }
 
-  // Fallback if AI fails completely
   if (results.length === 0) {
     console.log(`⚠️ AI FAILED. Using fallback prompt.`);
     results.push({
       id: `fallback-${Date.now()}`,
       text: config.fallback,
       category: config.title,
+      gamemode: input.gamemode,
       tags: ['fallback'],
     });
   }
