@@ -50,7 +50,8 @@ export async function getNextPrompt(req: Request, res: Response) {
       where: { id: profileId },
       include: {
         history: {
-          orderBy: { timestamp: 'asc' },
+          orderBy: { timestamp: 'desc' },
+          take: 200,
           include: { prompt: true },
         },
       },
@@ -63,8 +64,8 @@ export async function getNextPrompt(req: Request, res: Response) {
       where: { gamemode: gamemode }
     });
     
-    const history = profile.history.map((play) => ({
-      swipedLeft: play.swipedLeft,
+    const history = profile.history.reverse().map((play) => ({
+      answered: play.answered,
       prompt: { text: play.prompt.text, category: play.prompt.category, tags: play.prompt.tags },
     }));
     const playedPromptIds = profile.history.map((play) => play.promptId);
@@ -81,9 +82,13 @@ export async function getNextPrompt(req: Request, res: Response) {
       ageRange: profile.ageRange,
     });
 
-    const savedPrompts = await Promise.all(
+    const savedPrompts = (await Promise.all(
       result.prompts.map(async (p) => {
         if (p.id.startsWith('generated-') || p.id.startsWith('fallback-')) {
+          const isDuplicate = dbPrompts.some(dbP => dbP.text === p.text);
+          const isValid = p.text.length >= 10 && !p.text.toLowerCase().startsWith('here are');
+          if (isDuplicate || !isValid) return null;
+
           return await prisma.questionPrompt.create({
             data: { 
               text: p.text, 
@@ -95,7 +100,7 @@ export async function getNextPrompt(req: Request, res: Response) {
         }
         return p;
       })
-    );
+    )).filter((p) => p !== null);
 
     res.json({ prompts: savedPrompts });
   } catch (error) {
@@ -106,10 +111,10 @@ export async function getNextPrompt(req: Request, res: Response) {
 
 export async function recordSwipe(req: Request, res: Response) {
   const { profileId } = req.params;
-  const { promptId, swipedLeft } = req.body;
+  const { promptId, answered } = req.body;
 
-  if (!promptId || typeof swipedLeft !== 'boolean') {
-    return res.status(400).json({ error: 'promptId and swipedLeft are required' });
+  if (!promptId || typeof answered !== 'boolean') {
+    return res.status(400).json({ error: 'promptId and answered are required' });
   }
 
   try {
@@ -126,12 +131,12 @@ export async function recordSwipe(req: Request, res: Response) {
       parseVibeWeights(profile.vibeWeights),
       prompt.category,
       prompt.tags,
-      swipedLeft,
+      answered,
       historyLength
     );
 
     const play = await prisma.promptPlay.create({
-      data: { profileId, promptId, swipedLeft },
+      data: { profileId, promptId, answered },
     });
     
     await prisma.userProfile.update({

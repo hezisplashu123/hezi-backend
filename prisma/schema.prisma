@@ -44,7 +44,7 @@ model PromptPlay {
   id         String   @id @default(uuid())
   profileId  String
   promptId   String
-  swipedLeft Boolean
+  answered   Boolean  @default(false)
   timestamp  DateTime @default(now())
 
   profile UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)

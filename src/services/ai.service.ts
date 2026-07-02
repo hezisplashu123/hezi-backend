@@ -28,7 +28,7 @@ export type QuestionPromptCandidate = {
 };
 
 export type PromptPlayRecord = {
-  swipedLeft: boolean;
+  answered: boolean;
   prompt: { text: string; category: string; tags: string[] };
 };
 
@@ -54,12 +54,12 @@ export function applySwipeFeedback(
   weights: Record<string, number>,
   category: string,
   tags: string[],
-  swipedLeft: boolean,
+  answered: boolean,
   historyLength: number
 ): Record<string, number> {
   const next = { ...parseVibeWeights(weights) };
   const deltaAmount = historyLength <= 10 ? WEIGHT_DELTA_CALIBRATION : WEIGHT_DELTA_STABILIZED;
-  const delta = swipedLeft ? deltaAmount : -deltaAmount;
+  const delta = answered ? deltaAmount : -deltaAmount;
   const keys = new Set([category, ...tags]);
 
   keys.forEach((key) => {
@@ -270,11 +270,12 @@ export async function generatePersonalizedPrompts(
 ): Promise<{ prompts: { text: string; category: string; tags: string[] }[] } | null> {
   
   const tagStats: Record<string, { seen: number; answered: number }> = {};
-  categoryHistory.forEach(play => {
+  categoryHistory.forEach((play, index) => {
+    const weight = categoryHistory.length <= 1 ? 1 : 0.2 + (0.8 * (index / (categoryHistory.length - 1)));
     play.prompt.tags.forEach(tag => {
       if (!tagStats[tag]) tagStats[tag] = { seen: 0, answered: 0 };
-      tagStats[tag].seen += 1;
-      if (play.swipedLeft) tagStats[tag].answered += 1; 
+      tagStats[tag].seen += weight;
+      if (play.answered) tagStats[tag].answered += weight; 
     });
   });
 
@@ -288,7 +289,7 @@ export async function generatePersonalizedPrompts(
   const hatedTags = tagRates.filter(t => t.rate < 0.5).sort((a,b) => a.rate - b.rate).map(t => t.tag).slice(0, 3);
 
   const last3 = categoryHistory.slice(-3).map(h => 
-    `${h.swipedLeft ? 'ANSWERED' : 'SKIPPED'}: "${h.prompt.text}"`
+    `${h.answered ? 'ANSWERED' : 'SKIPPED'}: "${h.prompt.text}"`
   );
 
   const systemPrompt = `
@@ -317,6 +318,7 @@ ${last3.length > 0 ? last3.join('\n') : 'No recent swipes in this category yet.'
 
 TASK: Generate EXACTLY ${count} new questions. 
 EVERY SINGLE QUESTION MUST PERFECTLY MATCH THE "FORMAT REQUIREMENT", "GROUP SIZE INSTRUCTIONS", AND FIT THEIR "AGE RANGE".
+CRITICAL: Exactly 1 out of the ${count} questions MUST target a topic they haven't rated yet to encourage exploration.
 
 OUTPUT JSON FORMAT:
 {
