@@ -90,6 +90,7 @@ CRITICAL TONE CONSTRAINTS:
 2. NO "THERAPY-SPEAK" OR INTERROGATIONS: Ban words like: boundary, journey, unpack, toxic trait, inner child, validate, navigate. Do not sound like a therapist.
 3. NO "ASK-REDDIT" ABSTRACTS: Do not ask generic internet questions like "What is a societal scam?" Focus entirely on interpersonal relationships, friends, and human behavior.
 4. The tone must be conversational and chill. Speak like a witty 20-something having drinks with close friends.
+5. NO INTROS OR OUTROS: Do not preface the question with conversational filler ("Give me the deets", "Spill the tea", "Forget the awkwardness", "Let's get into it", "Okay so", etc). Do not add a closing remark after the question. Output ONLY the question itself, in the requested tone. The tone comes from word choice within the question, not from a wrapper phrase around it.
 `;
 
 function getPlayerCountRules(playerCount: number): string {
@@ -349,18 +350,50 @@ OUTPUT JSON FORMAT:
     
     if (!parsed.prompts || !Array.isArray(parsed.prompts)) return null;
     
+    // Server-side backstop for filler phrases
+    const FILLER_DENYLIST = [
+      "give me the deets",
+      "spill the tea",
+      "forget the awkwardness",
+      "let's get into it",
+      "okay so",
+      "let's get deep",
+      "time to spill",
+      "get ready",
+      "here's a deep one",
+      "be honest"
+    ];
+
+    let validPrompts = parsed.prompts.map((p: any) => ({
+      text: String(p.text).trim(),
+      category: config.title, 
+      tags: Array.isArray(p.tags) ? p.tags.map(String) : [],
+    }));
+
+    const originalCount = validPrompts.length;
+    validPrompts = validPrompts.filter(p => {
+      const lowerText = p.text.toLowerCase();
+      for (const filler of FILLER_DENYLIST) {
+        if (lowerText.startsWith(filler)) {
+          console.warn(`🛑 REJECTED AI PROMPT (Matched filler: "${filler}"): ${p.text}`);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (validPrompts.length < originalCount) {
+      console.warn(`⚠️ Dropped ${originalCount - validPrompts.length} prompts due to filler words.`);
+    }
+
     console.log("✅ AI GENERATED THESE QUESTIONS:");
-    parsed.prompts.forEach((p: any, idx: number) => {
+    validPrompts.forEach((p: any, idx: number) => {
       console.log(`  ${idx + 1}. ${p.text}`);
     });
     console.log("========================================\n");
 
     return {
-      prompts: parsed.prompts.map((p: any) => ({
-        text: String(p.text),
-        category: config.title, 
-        tags: Array.isArray(p.tags) ? p.tags.map(String) : [],
-      })).slice(0, count), 
+      prompts: validPrompts.slice(0, count), 
     };
   } catch (error) {
     console.error('Personalized prompt generation failed:', error);
