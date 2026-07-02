@@ -57,7 +57,11 @@ export async function getNextPrompt(req: Request, res: Response) {
     });
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
-    const dbPrompts = await prisma.questionPrompt.findMany();
+    // 🔒 BULLETPROOF FIX: We ONLY ask the database for questions that match the exact gamemode. 
+    // It is now physically impossible for a Family question to enter a Friends queue.
+    const dbPrompts = await prisma.questionPrompt.findMany({
+      where: { gamemode: gamemode }
+    });
     
     const history = profile.history.map((play) => ({
       swipedLeft: play.swipedLeft,
@@ -80,7 +84,6 @@ export async function getNextPrompt(req: Request, res: Response) {
     const savedPrompts = await Promise.all(
       result.prompts.map(async (p) => {
         if (p.id.startsWith('generated-') || p.id.startsWith('fallback-')) {
-          // BUG FIX: Inject gamemode into newly created prompts so they save correctly
           return await prisma.questionPrompt.create({
             data: { 
               text: p.text, 
