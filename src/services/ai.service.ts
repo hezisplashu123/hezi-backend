@@ -103,12 +103,15 @@ function getPlayerCountRules(playerCount: number): string {
   }
 }
 
+// TODO (Maintenance): This file contains cultural/generational relationship dynamics tailored for ~2026.
+// Slang and social norms decay rapidly. Revisit and refresh this CATEGORY_MAP roughly every 6 months 
+// to ensure the AI's prompts stay relevant and don't sound out-of-touch.
 const CATEGORY_MAP: Record<string, CategoryConfig> = {
   // FRIENDS
   'friends-icebreakers': {
     title: 'Icebreakers',
     dbCategories: ['Funny', 'Scenarios'],
-    rules: 'Spark immediate, fun debates about dating, social rules, and harmless opinions.',
+    rules: 'Focus hot takes on modern social etiquette: group chats, dating apps, texting norms, and the unwritten rules of friend-group logistics — not just abstract dating opinions.',
     formatRequirement: 'Ask for a highly specific hot take or a relatable social scenario.',
     bannedConcepts: 'Do not ask about favorite colors, foods, abstract societal issues, or boring pet peeves.',
     fallback: 'What is a highly specific, harmless thing someone can do on a first date that guarantees you will ghost them?'
@@ -116,7 +119,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'friends-most-likely': {
     title: "Most Likely",
     dbCategories: ["Who's Most Likely", "Funny"],
-    rules: 'Playfully call out the group\'s chaotic or funny traits.',
+    rules: 'Playfully call out the group\'s chaotic or funny traits. Explicitly include staying in an undefined situation way too long, avoiding an overdue money conversation with a friend, or overanalyzing texts with the group chat.',
     formatRequirement: 'EVERY prompt MUST begin exactly with: "Who is most likely to..." or "Who would..."',
     bannedConcepts: 'No generic "survive a zombie apocalypse" or genuinely mean-spirited questions.',
     fallback: 'Who is most likely to defend their partner\'s terrible behavior just because they are too scared to be single?'
@@ -125,7 +128,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     title: 'What Ifs',
     dbCategories: ['Scenarios'],
     rules: 'Create fun, high-stakes, morally grey, or absurd situations.',
-    formatRequirement: 'Put the group or the individual in a wild scenario that requires a difficult choice.',
+    formatRequirement: 'Put the group or the individual in a wild scenario that requires a difficult choice. Include scenarios that force a choice between a friendship and money/fairness.',
     bannedConcepts: 'No boring "what superpower would you have" questions.',
     fallback: 'You find a briefcase with $100,000, but keeping it means your best friend gets fired from their job. Are you taking the money?'
   },
@@ -133,14 +136,14 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     title: 'Nostalgia',
     dbCategories: ['Nostalgia'],
     rules: 'Focus on wild nights out, core memories, and funny past drama with friends.',
-    formatRequirement: 'Ask about a memorable moment, inside joke, or era from the past.',
+    formatRequirement: 'Ask about a memorable moment, inside joke, or era from the past. Explicitly include questions about how a digital-first friend group first formed/met (e.g. gaming, shared online communities).',
     bannedConcepts: 'CRITICAL: DO NOT ask about middle school cringe, teenage angst, or childhood trauma. Keep it fun and friend-oriented.',
     fallback: 'What was the absolute wildest night out you’ve ever had where almost nothing went according to plan?'
   },
   'friends-confessions': {
     title: 'Confessions',
     dbCategories: ['Vulnerability', 'Funny'],
-    rules: 'Lighthearted secrets, petty revenge, and funny truths. Opening up, but keeping it good vibes.',
+    rules: 'Lighthearted secrets, petty revenge, and funny truths. Petty avoidance behaviors around shared costs/payback (e.g., muting a chat, stalling Venmo, pretending not to see reminders) are fair game.',
     formatRequirement: 'Ask the user to admit a funny secret or a petty/harmless action they took.',
     bannedConcepts: 'CRITICAL: Do not ask about deep manipulative behavior, depressing guilt, or actual terrible traits.',
     fallback: 'Whose life do you casually keep tabs on just because it makes you feel better about your own?'
@@ -148,7 +151,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'friends-deep-talk': {
     title: 'Deep Talk',
     dbCategories: ['Existential', 'Vulnerability', 'Relationships'],
-    rules: 'Reflective, uplifting, and honest conversation without being a downer.',
+    rules: 'Reflective, uplifting, and honest conversation. Frame around the normalization of "friendship breakups", choosing quality over quantity in friendships, or how what a friendship "needs to survive" has changed. Frame as growth/clarity, not loss/grief.',
     formatRequirement: 'Ask a thought-provoking, open-ended question about personal growth or relationship dynamics.',
     bannedConcepts: 'CRITICAL: NO DEPRESSING SHIT. Do not ask about painful truths, faking personalities, or existential dread.',
     fallback: 'What is a belief you held strongly a few years ago that you have quietly abandoned?'
@@ -158,7 +161,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'lovers-warm-up': {
     title: 'Warm Up',
     dbCategories: ['Funny', 'Relationships'],
-    rules: 'Light, teasing observations about the partner.',
+    rules: 'Light, teasing observations about the partner. Focus on texting-era quirks (double-texting anxiety, read-receipt behavior, response-time habits).',
     formatRequirement: 'Focus on weird, highly specific habits or immediate desires.',
     bannedConcepts: 'No heavy relationship history or trauma yet.',
     fallback: 'What is a weird, highly specific habit of mine that you secretly love?'
@@ -167,14 +170,14 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     title: 'Spicy',
     dbCategories: ['Funny', 'Relationships'],
     rules: 'Physical tension, innocent turn-ons, and butterflies.',
-    formatRequirement: 'Must be provocative and flirty, but strictly avoid explicit/NSFW language.',
+    formatRequirement: 'Must be provocative and flirty, but strictly avoid explicit/NSFW language. Include the "soft launch" / "hard launch" concept as a valid topic alongside physical tension.',
     bannedConcepts: 'Do not be overtly explicit, vulgar, or crude.',
     fallback: 'What is a completely non-physical thing I do that turns you on?'
   },
   'lovers-what-ifs': {
     title: 'What Ifs',
     dbCategories: ['Scenarios'],
-    rules: '"Us against the world" alternate realities.',
+    rules: '"Us against the world" alternate realities. Explicitly play off the couple NOT being one of the situationships/undefined-relationship stories everyone else has (aspirational, not comparative/smug).',
     formatRequirement: 'Put the couple in a movie-like scenario. Must frame the couple as a team.',
     bannedConcepts: 'Do not ask questions that pit the couple against each other.',
     fallback: 'If we had to fake our deaths and move to another country, what would our new jobs be?'
@@ -183,14 +186,14 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     title: 'Nostalgia',
     dbCategories: ['Nostalgia', 'Relationships'],
     rules: 'The talking phase, first impressions, and the origin story.',
-    formatRequirement: 'Ask for exact, cinematic memories from the very beginning of the relationship.',
+    formatRequirement: 'Ask for exact, cinematic memories from the very beginning of the relationship. Explicitly allow questions about the "talking stage" / soft-launch period as its own distinct, memorable phase.',
     bannedConcepts: 'Do not ask about past relationships with other people.',
     fallback: 'What was your exact first thought the very first time you saw me?'
   },
   'lovers-connection': {
     title: 'Connection',
     dbCategories: ['Relationships'],
-    rules: 'Teamwork, feeling loved, and balancing each other out.',
+    rules: 'Teamwork, feeling loved, and balancing each other out. Include how the couple handles disagreement or an awkward conversation neither wants to have, framed positively as a strength.',
     formatRequirement: 'Focus on the unseen ways the couple supports each other.',
     bannedConcepts: 'Avoid generic "what do you love about me" phrasing. Be highly specific.',
     fallback: 'In what highly specific way do you think we balance each other out perfectly?'
@@ -198,7 +201,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'lovers-deep-talk': {
     title: 'Deep Talk',
     dbCategories: ['Existential', 'Vulnerability'],
-    rules: 'Vulnerability, future fears, and the reality of long-term love.',
+    rules: 'Vulnerability, future fears, and the reality of long-term love. Include how the couple thinks about traditional milestones differently than they assumed they would growing up (finance-driven delays).',
     formatRequirement: 'Ask about unspoken fears or how their definition of love has evolved.',
     bannedConcepts: 'No cliché "where do you see us in 5 years" questions.',
     fallback: 'What is a fear you have about our future that you rarely say out loud?'
@@ -208,7 +211,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'family-icebreakers': {
     title: 'Icebreakers',
     dbCategories: ['Funny', 'Scenarios'],
-    rules: 'Safe, funny, universal questions everyone at the table gets.',
+    rules: 'Safe, funny, universal questions everyone at the table gets. Living at home longer into the mid-20s can be asked about lightly as a shared present-day reality.',
     formatRequirement: 'Relate it to shared household culture or food.',
     bannedConcepts: 'Nothing offensive, sexual, or politically divisive.',
     fallback: 'If our family was a reality TV show, what would the title be?'
@@ -216,7 +219,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'family-most-likely': {
     title: 'Most Likely',
     dbCategories: ["Who's Most Likely", "Funny"],
-    rules: 'Gentle teasing about family roles and grudges.',
+    rules: 'Gentle teasing about family roles and grudges. Explicitly include family-group-chat-specific behaviors (e.g., unprompted life updates, forwarding warning articles).',
     formatRequirement: 'Must start exactly with "Who is most likely to...".',
     bannedConcepts: 'Do not be overly mean; keep it focused on lighthearted family stereotypes.',
     fallback: 'Who is most likely to bring up a 10-year-old argument at Thanksgiving dinner?'
@@ -224,7 +227,7 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
   'family-what-ifs': {
     title: 'What Ifs',
     dbCategories: ['Scenarios'],
-    rules: 'Absurd situations involving the whole family unit.',
+    rules: 'Absurd situations involving the whole family unit. Scenarios where multiple adult generations share one household are highly relatable.',
     formatRequirement: 'Put the entire family in a hypothetical scenario together.',
     bannedConcepts: 'Avoid dividing the family into sides.',
     fallback: 'If money was no object, what kind of ridiculous family compound would we build?'
@@ -241,14 +244,14 @@ const CATEGORY_MAP: Record<string, CategoryConfig> = {
     title: 'Perspectives',
     dbCategories: ['Nostalgia', 'Relationships'],
     rules: 'Bridging the generational gap.',
-    formatRequirement: 'Contrast the past vs. the present, or younger vs. older generations.',
+    formatRequirement: 'Contrast the past vs. the present, or younger vs. older generations. Explicitly include the generational gap on AI\'s role in daily life alongside slang.',
     bannedConcepts: 'Do not prompt actual political arguments.',
     fallback: 'What is a slang word or trend from today that makes absolutely zero sense to you?'
   },
   'family-deep-talk': {
     title: 'Deep Talk',
     dbCategories: ['Existential', 'Vulnerability'],
-    rules: 'Wisdom, regrets, and honest life reflections.',
+    rules: 'Wisdom, regrets, and honest life reflections. Include the gap between the age parents hit major life milestones vs. the age kids hit them now due to economics (frame as comparing eras and adapting).',
     formatRequirement: 'Ask about life lessons learned the hard way.',
     bannedConcepts: 'Avoid making parents feel guilty; focus on shared wisdom.',
     fallback: 'What is a life lesson you had to learn the hard way so I wouldn\'t have to?'
