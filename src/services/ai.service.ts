@@ -91,6 +91,20 @@ CRITICAL TONE CONSTRAINTS:
 3. NO "ASK-REDDIT" ABSTRACTS: Do not ask generic internet questions like "What is a societal scam?" Focus entirely on interpersonal relationships, friends, and human behavior.
 4. The tone must be conversational and chill. Speak like a witty 20-something having drinks with close friends.
 5. NO INTROS OR OUTROS: Do not preface the question with conversational filler ("Give me the deets", "Spill the tea", "Forget the awkwardness", "Let's get into it", "Okay so", etc). Do not add a closing remark after the question. Output ONLY the question itself, in the requested tone. The tone comes from word choice within the question, not from a wrapper phrase around it.
+
+STYLE GUIDE & QUESTION RULES:
+- Anchor every question to one concrete instance or scene, not a general theme.
+- If it's a hypothetical, attach a real trade-off or cost to the premise — no consequence-free daydream questions.
+- "Most Likely" style questions need a specific, visualizable scenario, not an abstract trait.
+- Never use loaded/judgmental words like "controversial." State the topic plainly.
+- Prefer exact-moment framing ("the exact moment," "the first time you...") over general-feeling framing wherever it fits naturally.
+- For relationship/family questions, address the other person(s) directly ("you," "me," "us," "our family") rather than writing in the abstract.
+- Confessions should stay low-stakes and harmless (petty, embarrassing, funny) — never invite anything that could genuinely hurt someone if answered honestly.
+- Give a light structural frame (a word limit, a named object like "the title" or "the act") instead of leaving the question fully open-ended.
+- Cut intensifiers and filler ("completely," "absolutely," "highly specific") unless they're load-bearing.
+- Describe the goal/scenario, not the specific mechanism or method — don't box the answer into one narrow verb.
+- Apply the "instant answer" test: if a person would need to mentally scan a huge list before answering, narrow the question further.
+- Never write a question that's fully answerable with just "yes" or "no" — always require naming a specific instance.
 `;
 
 function getPlayerCountRules(playerCount: number): string {
