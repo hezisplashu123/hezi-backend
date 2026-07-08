@@ -24,12 +24,13 @@ export type QuestionPromptCandidate = {
   text: string;
   category: string;
   gamemode: string;
-  tags: string[];
+  mechanics: string[];
+  tone: string;
 };
 
 export type PromptPlayRecord = {
   answered: boolean;
-  prompt: { text: string; category: string; tags: string[] };
+  prompt: { text: string; category: string; mechanics: string[]; tone: string };
 };
 
 function clampWeight(value: number): number {
@@ -53,14 +54,15 @@ export function parseVibeWeights(raw: Prisma.JsonValue | null): Record<string, n
 export function applySwipeFeedback(
   weights: Record<string, number>,
   category: string,
-  tags: string[],
+  mechanics: string[],
+  tone: string,
   answered: boolean,
   historyLength: number
 ): Record<string, number> {
   const next = { ...parseVibeWeights(weights) };
   const deltaAmount = historyLength <= 10 ? WEIGHT_DELTA_CALIBRATION : WEIGHT_DELTA_STABILIZED;
   const delta = answered ? deltaAmount : -deltaAmount;
-  const keys = new Set([category, ...tags]);
+  const keys = new Set([category, tone, ...mechanics]);
 
   keys.forEach((key) => {
     if (!key) return;
@@ -105,6 +107,14 @@ STYLE GUIDE & QUESTION RULES:
 - Describe the goal/scenario, not the specific mechanism or method — don't box the answer into one narrow verb.
 - Apply the "instant answer" test: if a person would need to mentally scan a huge list before answering, narrow the question further.
 - Never write a question that's fully answerable with just "yes" or "no" — always require naming a specific instance.
+
+OUTPUT REQUIREMENTS:
+For each question you generate, you must also output:
+- "mechanics": 1-3 tags from this exact list — specific_instance, real_stakes, social_ranking, exact_moment, direct_address, low_risk_confession, vulnerability, humor_forward, escapist_hypothetical, nostalgia_recall, forced_choice
+- "tone": exactly one of — playful, chaotic, heartfelt, spicy, wholesome, vulnerable
+
+Return a JSON object with a "prompts" array, where each object matches this shape:
+{ "text": "...", "mechanics": ["..."], "tone": "..." }
 `;
 
 function getPlayerCountRules(playerCount: number): string {
@@ -285,12 +295,13 @@ export async function generatePersonalizedPrompts(
   playerCount: number,
   ageRange: string | null,
   count: number = 5
-): Promise<{ prompts: { text: string; category: string; tags: string[] }[] } | null> {
+): Promise<{ prompts: { text: string; category: string; mechanics: string[]; tone: string }[] } | null> {
   
   const tagStats: Record<string, { seen: number; answered: number }> = {};
   categoryHistory.forEach((play, index) => {
     const weight = categoryHistory.length <= 1 ? 1 : 0.2 + (0.8 * (index / (categoryHistory.length - 1)));
-    play.prompt.tags.forEach(tag => {
+    const keys = [play.prompt.tone, ...play.prompt.mechanics];
+    keys.forEach(tag => {
       if (!tagStats[tag]) tagStats[tag] = { seen: 0, answered: 0 };
       tagStats[tag].seen += weight;
       if (play.answered) tagStats[tag].answered += weight; 
@@ -306,8 +317,9 @@ export async function generatePersonalizedPrompts(
   const lovedTags = tagRates.filter(t => t.rate >= 0.5).sort((a,b) => b.rate - a.rate).map(t => t.tag).slice(0, 4);
   const hatedTags = tagRates.filter(t => t.rate < 0.5).sort((a,b) => a.rate - b.rate).map(t => t.tag).slice(0, 3);
 
-  const last3 = categoryHistory.slice(-3).map(h => 
-    `${h.answered ? 'ANSWERED' : 'SKIPPED'}: "${h.prompt.text}"`
+  const answeredPrompts = categoryHistory.filter(h => h.answered);
+  const topExamples = answeredPrompts.slice(-5).map(h => 
+    `{ "text": "${h.prompt.text}", "mechanics": ${JSON.stringify(h.prompt.mechanics)}, "tone": "${h.prompt.tone}" }`
   );
 
   const systemPrompt = `
@@ -329,10 +341,11 @@ CATEGORY INSTRUCTIONS (CRITICAL):
 - Banned Concepts: ${config.bannedConcepts}
 
 PLAYER TASTES (Tailor the topics using these, but DO NOT break the format rules above):
-- Topics they like: ${lovedTags.length > 0 ? lovedTags.join(', ') : 'None yet'}
-- Topics they avoid: ${hatedTags.length > 0 ? hatedTags.join(', ') : 'None yet'}
-- Recent cards they saw:
-${last3.length > 0 ? last3.join('\n') : 'No recent swipes in this category yet.'}
+- Mechanics/Tones they lean into: ${lovedTags.length > 0 ? lovedTags.join(', ') : 'None yet'}
+- Mechanics/Tones they avoid: ${hatedTags.length > 0 ? hatedTags.join(', ') : 'None yet'}
+
+FEW-SHOT EXAMPLES (The user highly engaged with these recent questions, generate new ones with a similar style/mechanic structure):
+${topExamples.length > 0 ? topExamples.join('\n') : 'No recent answered questions in this category yet.'}
 
 TASK: Generate EXACTLY ${count} new questions. 
 EVERY SINGLE QUESTION MUST PERFECTLY MATCH THE "FORMAT REQUIREMENT", "GROUP SIZE INSTRUCTIONS", AND FIT THEIR "AGE RANGE".
@@ -355,7 +368,7 @@ OUTPUT JSON FORMAT:
   try {
     const completion = await openai.chat.completions.create({
       messages: [{ role: 'system', content: systemPrompt }],
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       response_format: { type: 'json_object' },
       temperature: 0.85,
     });
@@ -384,11 +397,12 @@ OUTPUT JSON FORMAT:
     let validPrompts = parsed.prompts.map((p: any) => ({
       text: String(p.text).trim(),
       category: config.title, 
-      tags: Array.isArray(p.tags) ? p.tags.map(String) : [],
+      mechanics: Array.isArray(p.mechanics) ? p.mechanics.map(String) : [],
+      tone: String(p.tone),
     }));
 
     const originalCount = validPrompts.length;
-    validPrompts = validPrompts.filter(p => {
+    validPrompts = validPrompts.filter((p: any) => {
       const lowerText = p.text.toLowerCase();
       for (const filler of FILLER_DENYLIST) {
         if (lowerText.startsWith(filler)) {
@@ -459,7 +473,7 @@ export async function getNextPromptsForProfile(input: {
     const ranked = availableDbPrompts
       .map(p => {
         let score = weights[p.category] ?? 0.3;
-        p.tags.forEach(tag => score += (weights[tag] ?? 0) * 0.35);
+        [p.tone, ...p.mechanics].forEach(tag => score += (weights[tag] ?? 0) * 0.35);
         return { p, score: score + Math.random() * 0.1 }; 
       })
       .sort((a, b) => b.score - a.score);
@@ -494,7 +508,8 @@ export async function getNextPromptsForProfile(input: {
           text: gp.text,
           category: gp.category,
           gamemode: input.gamemode,
-          tags: gp.tags,
+          mechanics: gp.mechanics,
+          tone: gp.tone,
         });
       });
     }
@@ -507,7 +522,8 @@ export async function getNextPromptsForProfile(input: {
       text: config.fallback,
       category: config.title,
       gamemode: input.gamemode,
-      tags: ['fallback'],
+      mechanics: ['fallback'],
+      tone: 'fallback',
     });
   }
 
