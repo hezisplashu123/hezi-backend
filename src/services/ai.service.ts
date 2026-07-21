@@ -325,7 +325,7 @@ export async function generatePersonalizedPrompts(
   );
 
   const systemPrompt = `
-You are an expert party game designer creating cards for a chill, social conversation game called Hezi.
+You are an expert party game designer creating cards for a chill, social conversation game called Realtalk.
 
 GAME CONTEXT: The user is playing with their ${gamemode.toUpperCase()}.
 CURRENT DECK/CATEGORY: "${config.title}"
